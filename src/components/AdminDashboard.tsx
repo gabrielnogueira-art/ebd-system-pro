@@ -193,12 +193,12 @@ export const AdminDashboard = () => {
       
       const { data: registrations } = await supabase
         .from("registrations")
-        .select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id")
+        .select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id, bibles, magazines")
         .gte("registration_date", startDate.toISOString())
         .lte("registration_date", endDate.toISOString());
       
       const { data: classes } = await supabase.from("classes").select("id, name");
-      const { data: students } = await supabase.from("students").select("class_id").eq("active", true);
+      const { data: students } = await supabase.from("students").select("id, class_id").eq("active", true);
       
       if (registrations && classes) {
         // Processar dados mensais
