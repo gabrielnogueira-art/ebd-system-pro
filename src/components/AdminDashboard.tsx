@@ -801,95 +801,75 @@ export const AdminDashboard = () => {
                          </ChartContainer>
                     </TabsContent>
                     <TabsContent value="rankings">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Ranking de Presença */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm flex items-center gap-2">
-                                        <Users className="h-4 w-4 text-blue-600" />
-                                        Ranking de Presença
-                                    </CardTitle>
-                                    <CardDescription className="text-xs">% presentes / matriculados</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        {[...classData]
-                                            .filter(c => c.enrolled > 0)
-                                            .sort((a, b) => b.presenceRate - a.presenceRate)
-                                            .map((cls, i) => (
-                                                <div key={cls.className} className="flex items-center justify-between text-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        {i < 3 && <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />}
-                                                        <span className={i < 3 ? 'font-semibold' : ''}>{cls.className}</span>
-                                                    </div>
-                                                    <span className="font-mono font-medium">{cls.presenceRate}%</span>
-                                                </div>
-                                            ))}
-                                        {classData.filter(c => c.enrolled > 0).length === 0 && (
-                                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados de matrícula</p>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            {/* Ranking de Bíblias */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4 text-green-600" />
-                                        Ranking de Bíblias
-                                    </CardTitle>
-                                    <CardDescription className="text-xs">% bíblias / presentes</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        {[...classData]
-                                            .filter(c => c.totalPresent > 0)
-                                            .sort((a, b) => b.biblesRate - a.biblesRate)
-                                            .map((cls, i) => (
-                                                <div key={cls.className} className="flex items-center justify-between text-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        {i < 3 && <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />}
-                                                        <span className={i < 3 ? 'font-semibold' : ''}>{cls.className}</span>
-                                                    </div>
-                                                    <span className="font-mono font-medium">{cls.biblesRate}%</span>
-                                                </div>
-                                            ))}
-                                        {classData.filter(c => c.totalPresent > 0).length === 0 && (
-                                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados</p>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            {/* Ranking de Revistas */}
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm flex items-center gap-2">
-                                        <BookMarked className="h-4 w-4 text-purple-600" />
-                                        Ranking de Revistas
-                                    </CardTitle>
-                                    <CardDescription className="text-xs">% revistas / presentes</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        {[...classData]
-                                            .filter(c => c.totalPresent > 0)
-                                            .sort((a, b) => b.magazinesRate - a.magazinesRate)
-                                            .map((cls, i) => (
-                                                <div key={cls.className} className="flex items-center justify-between text-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        {i < 3 && <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />}
-                                                        <span className={i < 3 ? 'font-semibold' : ''}>{cls.className}</span>
-                                                    </div>
-                                                    <span className="font-mono font-medium">{cls.magazinesRate}%</span>
-                                                </div>
-                                            ))}
-                                        {classData.filter(c => c.totalPresent > 0).length === 0 && (
-                                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados</p>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        {(() => {
+                            const getClassCategory = (className: string): string => {
+                                const upper = className.toUpperCase();
+                                if (upper.includes("OVELHINHAS") || upper.includes("SOLDADOS") || upper.includes("ESTRELA")) return "Crianças";
+                                if (upper.includes("LAEL") || upper.includes("ÁGAPE")) return "Adolescentes";
+                                if (upper.includes("NOVA VIDA") || upper.includes("EMANUEL") || upper.includes("ESTER") || upper.includes("LÍRIOS") || upper.includes("VENCEDORAS") || upper.includes("ESPERANÇA") || upper.includes("HERÓIS") || upper.includes("DÉBORA") || upper.includes("MOISÉS") || upper.includes("ABRAÃO")) return "Adultos";
+                                if (upper.includes("PROFESSOR") || upper.includes("EXTRA")) return "Ignorar";
+                                return "Ignorar";
+                            };
+
+                            const validClasses = classData.filter(c => getClassCategory(c.className) !== "Ignorar");
+
+                            const getTop3 = (data: ClassData[], category: string, metric: keyof ClassData, filterKey: keyof ClassData) => {
+                                return data
+                                    .filter(c => getClassCategory(c.className) === category && (c[filterKey] as number) > 0)
+                                    .sort((a, b) => (b[metric] as number) - (a[metric] as number))
+                                    .slice(0, 3);
+                            };
+
+                            const categories = ["Crianças", "Adolescentes", "Adultos"];
+                            const metrics: { key: keyof ClassData; filterKey: keyof ClassData; label: string; icon: React.ReactNode; description: string }[] = [
+                                { key: "presenceRate", filterKey: "enrolled", label: "Ranking de Presença", icon: <Users className="h-4 w-4 text-blue-600" />, description: "% presentes / matriculados" },
+                                { key: "biblesRate", filterKey: "totalPresent", label: "Ranking de Bíblias", icon: <BookOpen className="h-4 w-4 text-green-600" />, description: "% bíblias / presentes" },
+                                { key: "magazinesRate", filterKey: "totalPresent", label: "Ranking de Revistas", icon: <BookMarked className="h-4 w-4 text-purple-600" />, description: "% revistas / presentes" },
+                            ];
+
+                            return (
+                                <div className="space-y-6">
+                                    {metrics.map(metric => (
+                                        <div key={metric.label}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                {metric.icon}
+                                                <h3 className="font-semibold text-base">{metric.label}</h3>
+                                                <span className="text-xs text-muted-foreground">({metric.description})</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {categories.map(category => {
+                                                    const top3 = getTop3(validClasses, category, metric.key, metric.filterKey);
+                                                    return (
+                                                        <Card key={category}>
+                                                            <CardHeader className="pb-2">
+                                                                <CardTitle className="text-sm">{category}</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                {top3.length > 0 ? (
+                                                                    <div className="space-y-2">
+                                                                        {top3.map((cls, i) => (
+                                                                            <div key={cls.className} className="flex items-center justify-between text-sm">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />
+                                                                                    <span className="font-medium">{i + 1}º {cls.className}</span>
+                                                                                </div>
+                                                                                <span className="font-mono font-semibold">{cls[metric.key]}%</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-xs text-muted-foreground text-center py-2">Sem dados</p>
+                                                                )}
+                                                            </CardContent>
+                                                        </Card>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </TabsContent>
                 </Tabs>
             </CardContent>
