@@ -41,6 +41,12 @@ interface ClassData {
   enrolled: number;
   present: number;
   percentage: number;
+  presenceRate: number;
+  biblesRate: number;
+  magazinesRate: number;
+  totalBibles: number;
+  totalMagazines: number;
+  totalPresent: number;
 }
 
 interface AbsentStudent {
