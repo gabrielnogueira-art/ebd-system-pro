@@ -778,8 +778,8 @@ export const AdminDashboard = () => {
                                 </p>
                             </div>
                         </div>
-                        <ChartContainer config={{}} className="h-[600px] w-full">
-                           <BarChart data={classData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                         <ChartContainer config={{}} className="h-[600px] w-full">
+                           <BarChart data={classData} layout="vertical" margin={{ left: 20, right: 50 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis type="number" />
                                 <YAxis 
@@ -794,9 +794,102 @@ export const AdminDashboard = () => {
                                     dataKey="present" 
                                     fill="hsl(var(--primary))" 
                                     name={selectedDate && selectedDate !== "all" ? "Presentes" : "Média de Presentes"} 
-                                />
+                                >
+                                    <LabelList dataKey="present" position="right" style={{ fontSize: '12px', fill: 'hsl(var(--foreground))' }} />
+                                </Bar>
                            </BarChart>
-                        </ChartContainer>
+                         </ChartContainer>
+                    </TabsContent>
+                    <TabsContent value="rankings">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Ranking de Presença */}
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-blue-600" />
+                                        Ranking de Presença
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">% presentes / matriculados</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-2">
+                                        {[...classData]
+                                            .filter(c => c.enrolled > 0)
+                                            .sort((a, b) => b.presenceRate - a.presenceRate)
+                                            .map((cls, i) => (
+                                                <div key={cls.className} className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        {i < 3 && <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />}
+                                                        <span className={i < 3 ? 'font-semibold' : ''}>{cls.className}</span>
+                                                    </div>
+                                                    <span className="font-mono font-medium">{cls.presenceRate}%</span>
+                                                </div>
+                                            ))}
+                                        {classData.filter(c => c.enrolled > 0).length === 0 && (
+                                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados de matrícula</p>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            {/* Ranking de Bíblias */}
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-green-600" />
+                                        Ranking de Bíblias
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">% bíblias / presentes</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-2">
+                                        {[...classData]
+                                            .filter(c => c.totalPresent > 0)
+                                            .sort((a, b) => b.biblesRate - a.biblesRate)
+                                            .map((cls, i) => (
+                                                <div key={cls.className} className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        {i < 3 && <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />}
+                                                        <span className={i < 3 ? 'font-semibold' : ''}>{cls.className}</span>
+                                                    </div>
+                                                    <span className="font-mono font-medium">{cls.biblesRate}%</span>
+                                                </div>
+                                            ))}
+                                        {classData.filter(c => c.totalPresent > 0).length === 0 && (
+                                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados</p>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            {/* Ranking de Revistas */}
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                        <BookMarked className="h-4 w-4 text-purple-600" />
+                                        Ranking de Revistas
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">% revistas / presentes</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-2">
+                                        {[...classData]
+                                            .filter(c => c.totalPresent > 0)
+                                            .sort((a, b) => b.magazinesRate - a.magazinesRate)
+                                            .map((cls, i) => (
+                                                <div key={cls.className} className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        {i < 3 && <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />}
+                                                        <span className={i < 3 ? 'font-semibold' : ''}>{cls.className}</span>
+                                                    </div>
+                                                    <span className="font-mono font-medium">{cls.magazinesRate}%</span>
+                                                </div>
+                                            ))}
+                                        {classData.filter(c => c.totalPresent > 0).length === 0 && (
+                                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados</p>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </CardContent>
