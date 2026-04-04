@@ -565,10 +565,11 @@ export const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="overview" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-4">
+                     <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                         <TabsTrigger value="attendance">Frequência</TabsTrigger>
                         <TabsTrigger value="classes">Por Classe</TabsTrigger>
+                        <TabsTrigger value="rankings">Rankings %</TabsTrigger>
                         <TabsTrigger value="financial">Financeiro</TabsTrigger>
                     </TabsList>
                     <TabsContent value="overview">
