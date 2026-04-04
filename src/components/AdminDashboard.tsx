@@ -264,36 +264,59 @@ export const AdminDashboard = () => {
         setAttendanceData(attendanceByWeek.length > 0 ? attendanceByWeek : [{ dayOfWeek: "Sem dados", attendance: 0 }]);
         
         // Processar dados por classe
-        const classStats: { [key: number]: { present: number; count: number } } = {};
+        const classStats: { [key: number]: { present: number; count: number; bibles: number; magazines: number } } = {};
         
         // Filtrar registros por data se selecionada
         const filteredRegistrations = selectedDate && selectedDate !== "all"
           ? registrations.filter(r => r.registration_date.substring(0, 10) === selectedDate)
           : registrations;
         
-        // Contar presentes por classe
+        // Contar presentes, bíblias e revistas por classe
         filteredRegistrations.forEach(reg => {
           if (reg.class_id) {
-            if (!classStats[reg.class_id]) classStats[reg.class_id] = { present: 0, count: 0 };
+            if (!classStats[reg.class_id]) classStats[reg.class_id] = { present: 0, count: 0, bibles: 0, magazines: 0 };
             classStats[reg.class_id].present += reg.total_present || 0;
+            classStats[reg.class_id].bibles += reg.bibles || 0;
+            classStats[reg.class_id].magazines += reg.magazines || 0;
             classStats[reg.class_id].count++;
           }
         });
         
+        // Contar matriculados por classe
+        const enrolledByClass: { [key: number]: number } = {};
+        students?.forEach(s => {
+          if (s.class_id) {
+            enrolledByClass[s.class_id] = (enrolledByClass[s.class_id] || 0) + 1;
+          }
+        });
+        
         // Calcular média ou total dependendo se uma data está selecionada
-        const classArray = classes.map(cls => {
-          const stats = classStats[cls.id];
-          const totalPresent = stats?.present || 0;
-          const count = stats?.count || 1;
+        const classArray: ClassData[] = classes.map(cls => {
+          const stat = classStats[cls.id];
+          const totalPresent = stat?.present || 0;
+          const totalBibles = stat?.bibles || 0;
+          const totalMagazines = stat?.magazines || 0;
+          const count = stat?.count || 1;
+          const enrolled = enrolledByClass[cls.id] || 0;
+          const avgPresent = selectedDate && selectedDate !== "all" ? totalPresent : Math.round(totalPresent / count);
+          
+          const presenceRate = enrolled > 0 ? Math.round((avgPresent / enrolled) * 100 * 10) / 10 : 0;
+          const biblesRate = totalPresent > 0 ? Math.round((totalBibles / totalPresent) * 100 * 10) / 10 : 0;
+          const magazinesRate = totalPresent > 0 ? Math.round((totalMagazines / totalPresent) * 100 * 10) / 10 : 0;
           
           return {
             className: cls.name.split('(')[0].trim(),
-            enrolled: 0, // Não usado neste contexto
-            present: selectedDate && selectedDate !== "all" ? totalPresent : Math.round(totalPresent / count),
-            percentage: 0 // Não usado neste contexto
+            enrolled,
+            present: avgPresent,
+            percentage: presenceRate,
+            presenceRate,
+            biblesRate,
+            magazinesRate,
+            totalBibles,
+            totalMagazines,
+            totalPresent,
           };
         }).sort((a, b) => {
-          // Extrair números dos nomes das classes para ordenação natural
           const numA = parseInt(a.className.match(/\d+/)?.[0] || '0');
           const numB = parseInt(b.className.match(/\d+/)?.[0] || '0');
           return numA - numB;
