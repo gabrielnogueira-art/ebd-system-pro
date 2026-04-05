@@ -311,7 +311,7 @@ export const ReportsTab = () => {
         return items.slice(0, n).map((item, index) => ({ ...item, rank: `${index + 1}°` }));
       };
       
-      const childrenClasses = sortedByOffering.filter(c => c.name.includes("SOLDADOS") || c.name.includes("OVELHINHAS"));
+      const childrenClasses = sortedByOffering.filter(c => c.name.includes("SOLDADOS") || c.name.includes("OVELHINHAS") || c.name.includes("CORDEIRINHOS"));
       const adolescentsClasses = sortedByOffering.filter(c => c.name.includes("ESTRELA") || c.name.includes("LAEL") || c.name.includes("ÁGAPE"));
       const adultsClasses = sortedByOffering.filter(c => !childrenClasses.some(child => child.name === c.name) && !adolescentsClasses.some(adol => adol.name === c.name));
       

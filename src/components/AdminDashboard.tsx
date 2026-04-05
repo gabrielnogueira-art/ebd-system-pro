@@ -804,7 +804,7 @@ export const AdminDashboard = () => {
                         {(() => {
                             const getClassCategory = (className: string): string => {
                                 const upper = className.toUpperCase();
-                                if (upper.includes("OVELHINHAS") || upper.includes("SOLDADOS") || upper.includes("ESTRELA")) return "Crianças";
+                                if (upper.includes("OVELHINHAS") || upper.includes("CORDEIRINHOS") || upper.includes("SOLDADOS") || upper.includes("ESTRELA")) return "Crianças";
                                 if (upper.includes("LAEL") || upper.includes("ÁGAPE")) return "Adolescentes";
                                 if (upper.includes("NOVA VIDA") || upper.includes("EMANUEL") || upper.includes("ESTER") || upper.includes("LÍRIOS") || upper.includes("VENCEDORAS") || upper.includes("ESPERANÇA") || upper.includes("HERÓIS") || upper.includes("DÉBORA") || upper.includes("MOISÉS") || upper.includes("ABRAÃO")) return "Adultos";
                                 if (upper.includes("PROFESSOR") || upper.includes("EXTRA")) return "Ignorar";
