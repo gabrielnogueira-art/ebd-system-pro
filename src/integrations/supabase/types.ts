@@ -35,6 +35,7 @@ export type Database = {
       registrations: {
         Row: {
           bibles: number | null
+          cash_difference: number | null
           class_id: number | null
           class_notes: string | null
           created_at: string
@@ -44,14 +45,17 @@ export type Database = {
           magazines: number | null
           offering_cash: number | null
           offering_pix: number | null
+          pix_difference: number | null
           pix_receipt_urls: string[] | null
           present_students: string[] | null
+          reconciled: boolean | null
           registration_date: string
           total_present: number | null
           visitors: number | null
         }
         Insert: {
           bibles?: number | null
+          cash_difference?: number | null
           class_id?: number | null
           class_notes?: string | null
           created_at?: string
@@ -61,14 +65,17 @@ export type Database = {
           magazines?: number | null
           offering_cash?: number | null
           offering_pix?: number | null
+          pix_difference?: number | null
           pix_receipt_urls?: string[] | null
           present_students?: string[] | null
+          reconciled?: boolean | null
           registration_date?: string
           total_present?: number | null
           visitors?: number | null
         }
         Update: {
           bibles?: number | null
+          cash_difference?: number | null
           class_id?: number | null
           class_notes?: string | null
           created_at?: string
@@ -78,8 +85,10 @@ export type Database = {
           magazines?: number | null
           offering_cash?: number | null
           offering_pix?: number | null
+          pix_difference?: number | null
           pix_receipt_urls?: string[] | null
           present_students?: string[] | null
+          reconciled?: boolean | null
           registration_date?: string
           total_present?: number | null
           visitors?: number | null
