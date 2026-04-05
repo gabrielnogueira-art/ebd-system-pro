@@ -8,6 +8,7 @@ import { AdminDashboard } from "@/components/AdminDashboard";
 import { RegistrationsList } from "@/components/RegistrationsList";
 import { StudentsManagement } from "@/components/StudentsManagement";
 import { ReportsTab } from "@/components/ReportsTab";
+import { ConfrontoTab } from "@/components/ConfrontoTab";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
