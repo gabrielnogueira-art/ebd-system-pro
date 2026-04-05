@@ -135,7 +135,7 @@ const ClassesReport = ({ reportData, selectedDate, reportTheme }: { reportData: 
   
   // Separar classes por faixa etária e ordenar por nome
   const childrenClasses = reportData?.classDetails?.filter(c => 
-    c.name.includes("SOLDADOS") || c.name.includes("OVELHINHAS")
+    c.name.includes("SOLDADOS") || c.name.includes("OVELHINHAS") || c.name.includes("CORDEIRINHOS")
   ) || [];
   
   const adolescentsClasses = reportData?.classDetails?.filter(c => 
