@@ -72,9 +72,10 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="registrations">Registros</TabsTrigger>
+            <TabsTrigger value="confronto">Confronto</TabsTrigger>
             <TabsTrigger value="students">Alunos</TabsTrigger>
             <TabsTrigger value="reports">Relatórios</TabsTrigger>
           </TabsList>
@@ -85,6 +86,10 @@ const Admin = () => {
 
           <TabsContent value="registrations">
             <RegistrationsList key={`registrations-${refreshKey}`} />
+          </TabsContent>
+
+          <TabsContent value="confronto">
+            <ConfrontoTab key={`confronto-${refreshKey}`} />
           </TabsContent>
 
           <TabsContent value="students">
