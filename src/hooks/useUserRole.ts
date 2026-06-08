@@ -38,7 +38,7 @@ export function useUserRole(): UserRoleInfo {
         setInfo({ role: null, congregationId: null, loading: false });
         return;
       }
-      const rows = data as Array<{ role: AppRole; congregation_id: string | null }>;
+      const rows = (data as unknown) as Array<{ role: AppRole; congregation_id: string | null }>;
       const admin = rows.find((r) => r.role === "secretario_ebd");
       const chosen = admin ?? rows[0];
       setInfo({
