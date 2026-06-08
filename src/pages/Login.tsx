@@ -47,12 +47,30 @@ const Login = () => {
       if (!data.session) {
         throw new Error("Não foi possível estabelecer uma sessão. Tente novamente.");
       }
-      
+
+      // Identifica o papel do usuario para rotear corretamente
+      const { data: roles } = await supabase
+        .from("user_roles" as any)
+        .select("role")
+        .eq("user_id", data.session.user.id);
+
+      const roleList = ((roles as unknown) as Array<{ role: string }>) || [];
+      const isAdmin = roleList.some((r) => r.role === "secretario_ebd");
+      const isTeacher = roleList.some((r) => r.role === "professor_classe");
+
       toast({
         title: "Login bem-sucedido!",
-        description: "A redirecionar para o painel de administrador.",
+        description: "A redirecionar...",
       });
-      navigate("/admin");
+
+      if (isAdmin) {
+        navigate("/admin");
+      } else if (isTeacher) {
+        navigate("/professor");
+      } else {
+        // Compatibilidade: usuarios antigos sem role caem no /admin
+        navigate("/admin");
+      }
 
     } catch (error: any) {
       toast({
