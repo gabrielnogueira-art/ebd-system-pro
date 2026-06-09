@@ -55,17 +55,20 @@ const Login = () => {
         .eq("user_id", data.session.user.id);
 
       const roleList = ((roles as unknown) as Array<{ role: string }>) || [];
-      const isAdmin = roleList.some((r) => r.role === "secretario_ebd");
-      const isTeacher = roleList.some((r) => r.role === "professor_classe");
+      const has = (r: string) => roleList.some((x) => x.role === r);
 
       toast({
         title: "Login bem-sucedido!",
         description: "A redirecionar...",
       });
 
-      if (isAdmin) {
-        navigate("/admin");
-      } else if (isTeacher) {
+      if (has("igreja_mae")) {
+        navigate("/admin?scope=ministry");
+      } else if (has("igreja_sede")) {
+        navigate("/admin?scope=headquarters");
+      } else if (has("secretario_ebd")) {
+        navigate("/admin?scope=congregation");
+      } else if (has("professor_classe")) {
         navigate("/professor");
       } else {
         // Compatibilidade: usuarios antigos sem role caem no /admin
