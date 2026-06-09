@@ -562,6 +562,7 @@ export const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
+        <DashboardScopeFilter scope={scope} />
         <Card>
             <CardHeader>
                 <CardTitle>Controle do Sistema</CardTitle>
