@@ -13,6 +13,8 @@ import { CalendarDays, TrendingUp, Users, DollarSign, AlertTriangle, ArrowUpDown
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useDashboardScope } from "@/hooks/useDashboardScope";
+import { DashboardScopeFilter } from "@/components/DashboardScopeFilter";
 
 interface DashboardStats {
   totalRegistrations: number;
@@ -60,6 +62,9 @@ interface AbsentStudent {
 }
 
 export const AdminDashboard = () => {
+  const scope = useDashboardScope();
+  const classIds = scope.effectiveClassIds; // null = sem restricao
+  const scopeKey = scope.classIdsKey;
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalStudents: 0,
@@ -124,8 +129,9 @@ export const AdminDashboard = () => {
     if (!isLoading) { // Evita buscar dados trimestrais na carga inicial duas vezes
         fetchQuarterlyData();
         fetchAbsentStudents();
+        fetchStats();
     }
-  }, [selectedQuarter, selectedDate, absenceQuarter]);
+  }, [selectedQuarter, selectedDate, absenceQuarter, scopeKey]);
 
   useEffect(() => {
     let filtered = absentStudents.filter(student =>
@@ -190,15 +196,30 @@ export const AdminDashboard = () => {
   const fetchQuarterlyData = async () => {
     try {
       const { startDate, endDate } = getQuarterDates(selectedQuarter);
-      
-      const { data: registrations } = await supabase
+
+      if (classIds !== null && classIds.length === 0) {
+        setQuarterlyData([]);
+        setAttendanceData([{ dayOfWeek: "Sem dados", attendance: 0 }]);
+        setClassData([]);
+        setAvailableDates([]);
+        return;
+      }
+
+      let regQ = supabase
         .from("registrations")
         .select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id, bibles, magazines")
         .gte("registration_date", startDate.toISOString())
         .lte("registration_date", endDate.toISOString());
-      
-      const { data: classes } = await supabase.from("classes").select("id, name");
-      const { data: students } = await supabase.from("students").select("id, class_id").eq("active", true);
+      if (classIds !== null) regQ = regQ.in("class_id", classIds);
+      const { data: registrations } = await regQ;
+
+      let clsQ = supabase.from("classes").select("id, name");
+      if (classIds !== null) clsQ = clsQ.in("id", classIds);
+      const { data: classes } = await clsQ;
+
+      let stuQ = supabase.from("students").select("id, class_id").eq("active", true);
+      if (classIds !== null) stuQ = stuQ.in("class_id", classIds);
+      const { data: students } = await stuQ;
       
       if (registrations && classes) {
         // Processar dados mensais
@@ -339,25 +360,28 @@ export const AdminDashboard = () => {
   const fetchAbsentStudents = async () => {
     try {
       const { startDate, endDate } = getQuarterDates(absenceQuarter);
-      
-      // Buscar todos os alunos ativos
-      const { data: students } = await supabase
-        .from("students")
-        .select("id, name, class_id")
-        .eq("active", true);
-      
-      // Buscar todas as classes
-      const { data: classes } = await supabase
-        .from("classes")
-        .select("id, name");
-      
-      // Buscar registros de presença do trimestre
-      const { data: registrations } = await supabase
+
+      if (classIds !== null && classIds.length === 0) {
+        setAbsentStudents([]);
+        return;
+      }
+
+      let stuQ = supabase.from("students").select("id, name, class_id").eq("active", true);
+      if (classIds !== null) stuQ = stuQ.in("class_id", classIds);
+      const { data: students } = await stuQ;
+
+      let clsQ = supabase.from("classes").select("id, name");
+      if (classIds !== null) clsQ = clsQ.in("id", classIds);
+      const { data: classes } = await clsQ;
+
+      let regQ = supabase
         .from("registrations")
         .select("registration_date, present_students, class_id")
         .gte("registration_date", startDate.toISOString())
         .lte("registration_date", endDate.toISOString())
         .order("registration_date", { ascending: true });
+      if (classIds !== null) regQ = regQ.in("class_id", classIds);
+      const { data: registrations } = await regQ;
       
       if (!students || !classes || !registrations) return;
       
@@ -415,12 +439,33 @@ export const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-        const { count: totalRegistrations } = await supabase.from("registrations").select("*", { count: "exact", head: true });
-        const { count: totalStudents } = await supabase.from("students").select("*", { count: "exact", head: true }).eq("active", true);
-        const { count: totalClasses } = await supabase.from("classes").select("*", { count: "exact", head: true });
+        if (classIds !== null && classIds.length === 0) {
+          setStats({ totalRegistrations: 0, totalStudents: 0, totalClasses: 0, todayRegistrations: 0, totalPresence: 0, totalVisitors: 0, totalOfferings: 0 });
+          return;
+        }
+        const withClassFilter = <T extends { in: (col: string, vals: number[]) => T }>(q: T, col: string) =>
+          classIds !== null ? q.in(col, classIds) : q;
+
+        let regAll = supabase.from("registrations").select("*", { count: "exact", head: true });
+        regAll = withClassFilter(regAll as any, "class_id");
+        const { count: totalRegistrations } = await regAll;
+
+        let stuAll = supabase.from("students").select("*", { count: "exact", head: true }).eq("active", true);
+        stuAll = withClassFilter(stuAll as any, "class_id");
+        const { count: totalStudents } = await stuAll;
+
+        let clsAll = supabase.from("classes").select("*", { count: "exact", head: true });
+        clsAll = withClassFilter(clsAll as any, "id");
+        const { count: totalClasses } = await clsAll;
+
         const today = new Date().toISOString().split('T')[0];
-        const { count: todayRegistrations } = await supabase.from("registrations").select("*", { count: "exact", head: true }).gte("registration_date", `${today}T00:00:00Z`).lt("registration_date", `${today}T23:59:59Z`);
-        const { data: aggregatedData } = await supabase.from("registrations").select("total_present, visitors, offering_cash, offering_pix");
+        let todayQ = supabase.from("registrations").select("*", { count: "exact", head: true }).gte("registration_date", `${today}T00:00:00Z`).lt("registration_date", `${today}T23:59:59Z`);
+        todayQ = withClassFilter(todayQ as any, "class_id");
+        const { count: todayRegistrations } = await todayQ;
+
+        let aggQ = supabase.from("registrations").select("total_present, visitors, offering_cash, offering_pix, class_id");
+        aggQ = withClassFilter(aggQ as any, "class_id");
+        const { data: aggregatedData } = await aggQ;
 
         let totalPresence = 0, totalVisitors = 0, totalOfferings = 0;
 
@@ -517,6 +562,7 @@ export const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
+        <DashboardScopeFilter scope={scope} />
         <Card>
             <CardHeader>
                 <CardTitle>Controle do Sistema</CardTitle>
