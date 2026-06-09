@@ -1,21 +1,37 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "secretario_ebd" | "professor_classe";
+export type AppRole =
+  | "igreja_mae"
+  | "igreja_sede"
+  | "secretario_ebd"
+  | "professor_classe";
 
 export interface UserRoleInfo {
   role: AppRole | null;
+  ministryId: string | null;
+  headquartersId: string | null;
   congregationId: string | null;
   loading: boolean;
 }
 
+// Prioridade do mais alto pro mais baixo
+const ROLE_PRIORITY: AppRole[] = [
+  "igreja_mae",
+  "igreja_sede",
+  "secretario_ebd",
+  "professor_classe",
+];
+
 /**
- * Le o(s) papel(eis) do usuario logado a partir da tabela public.user_roles.
- * Prioriza secretario_ebd quando o usuario tem ambos os papeis.
+ * Le o(s) papel(eis) do usuario logado e devolve o de maior escopo,
+ * junto com os ids de ministerio/sede/congregacao quando aplicaveis.
  */
 export function useUserRole(): UserRoleInfo {
   const [info, setInfo] = useState<UserRoleInfo>({
     role: null,
+    ministryId: null,
+    headquartersId: null,
     congregationId: null,
     loading: true,
   });
@@ -25,25 +41,46 @@ export function useUserRole(): UserRoleInfo {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        if (active) setInfo({ role: null, congregationId: null, loading: false });
+        if (active)
+          setInfo({
+            role: null,
+            ministryId: null,
+            headquartersId: null,
+            congregationId: null,
+            loading: false,
+          });
         return;
       }
       const { data, error } = await supabase
         .from("user_roles" as any)
-        .select("role, congregation_id")
-        .eq("user_id", user.id);
+        .select("role, ministry_id, headquarters_id, congregation_id");
 
       if (!active) return;
       if (error || !data || data.length === 0) {
-        setInfo({ role: null, congregationId: null, loading: false });
+        setInfo({
+          role: null,
+          ministryId: null,
+          headquartersId: null,
+          congregationId: null,
+          loading: false,
+        });
         return;
       }
-      const rows = (data as unknown) as Array<{ role: AppRole; congregation_id: string | null }>;
-      const admin = rows.find((r) => r.role === "secretario_ebd");
-      const chosen = admin ?? rows[0];
+      const rows = (data as unknown) as Array<{
+        role: AppRole;
+        ministry_id: string | null;
+        headquarters_id: string | null;
+        congregation_id: string | null;
+      }>;
+      const chosen =
+        ROLE_PRIORITY.map((r) => rows.find((x) => x.role === r)).find(Boolean) ??
+        rows[0];
+
       setInfo({
-        role: chosen.role,
-        congregationId: chosen.congregation_id,
+        role: chosen!.role,
+        ministryId: chosen!.ministry_id ?? null,
+        headquartersId: chosen!.headquarters_id ?? null,
+        congregationId: chosen!.congregation_id ?? null,
         loading: false,
       });
     };
