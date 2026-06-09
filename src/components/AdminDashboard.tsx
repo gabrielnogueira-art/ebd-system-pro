@@ -13,6 +13,8 @@ import { CalendarDays, TrendingUp, Users, DollarSign, AlertTriangle, ArrowUpDown
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useDashboardScope } from "@/hooks/useDashboardScope";
+import { DashboardScopeFilter } from "@/components/DashboardScopeFilter";
 
 interface DashboardStats {
   totalRegistrations: number;
@@ -60,6 +62,9 @@ interface AbsentStudent {
 }
 
 export const AdminDashboard = () => {
+  const scope = useDashboardScope();
+  const classIds = scope.effectiveClassIds; // null = sem restricao
+  const scopeKey = scope.classIdsKey;
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalStudents: 0,
@@ -124,8 +129,9 @@ export const AdminDashboard = () => {
     if (!isLoading) { // Evita buscar dados trimestrais na carga inicial duas vezes
         fetchQuarterlyData();
         fetchAbsentStudents();
+        fetchStats();
     }
-  }, [selectedQuarter, selectedDate, absenceQuarter]);
+  }, [selectedQuarter, selectedDate, absenceQuarter, scopeKey]);
 
   useEffect(() => {
     let filtered = absentStudents.filter(student =>
