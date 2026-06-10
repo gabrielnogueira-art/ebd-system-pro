@@ -66,6 +66,8 @@ const Login = () => {
         navigate("/admin?scope=ministry");
       } else if (has("igreja_sede")) {
         navigate("/admin?scope=headquarters");
+      } else if (has("admin_regional")) {
+        navigate("/admin?scope=regional");
       } else if (has("secretario_ebd")) {
         navigate("/admin?scope=congregation");
       } else if (has("professor_classe")) {
