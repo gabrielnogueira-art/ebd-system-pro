@@ -12,6 +12,7 @@ import { ConfrontoTab } from "@/components/ConfrontoTab";
 import { HierarchyTab } from "@/components/HierarchyTab";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -107,6 +108,7 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <SupabaseStatusBadge />
     </div>
   );
 };
