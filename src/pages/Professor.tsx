@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserRole } from "@/hooks/useUserRole";
+import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
 
 /**
  * Placeholder da Visao do Professor/Secretario da Classe (mobile-first).
@@ -67,6 +68,7 @@ const Professor = () => {
           </CardContent>
         </Card>
       </div>
+      <SupabaseStatusBadge />
     </div>
   );
 };

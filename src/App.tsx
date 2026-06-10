@@ -25,6 +25,7 @@ function RootGate() {
       let to = "/admin";
       if (has("igreja_mae")) to = "/admin?scope=ministry";
       else if (has("igreja_sede")) to = "/admin?scope=headquarters";
+      else if (has("admin_regional")) to = "/admin?scope=regional";
       else if (has("secretario_ebd")) to = "/admin?scope=congregation";
       else if (has("professor_classe")) to = "/professor";
       if (active) setState({ to });

@@ -71,6 +71,11 @@ export function useDashboardScope(): DashboardScope {
         visHq = allHq.filter((h) => h.id === userRole.headquartersId);
         visRg = allRg.filter((r) => r.headquarters_id === userRole.headquartersId);
         visCg = allCg.filter((c) => c.headquarters_id === userRole.headquartersId);
+      } else if (userRole.role === "admin_regional" && userRole.regionalId) {
+        visRg = allRg.filter((r) => r.id === userRole.regionalId);
+        const hqIds = new Set(visRg.map((r) => r.headquarters_id));
+        visHq = allHq.filter((h) => hqIds.has(h.id));
+        visCg = allCg.filter((c) => c.regional_id === userRole.regionalId);
       } else if (userRole.role === "secretario_ebd" && userRole.congregationId) {
         visCg = allCg.filter((c) => c.id === userRole.congregationId);
         const hqIds = new Set(visCg.map((c) => c.headquarters_id));
@@ -87,6 +92,9 @@ export function useDashboardScope(): DashboardScope {
       if (userRole.role === "igreja_sede" && userRole.headquartersId) {
         setSelectedHeadquartersId(userRole.headquartersId);
       }
+      if (userRole.role === "admin_regional" && userRole.regionalId) {
+        setSelectedRegionalId(userRole.regionalId);
+      }
       if (userRole.role === "secretario_ebd" && userRole.congregationId) {
         setSelectedCongregationId(userRole.congregationId);
       }
@@ -94,7 +102,7 @@ export function useDashboardScope(): DashboardScope {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [userRole.loading, userRole.role, userRole.ministryId, userRole.headquartersId, userRole.congregationId]);
+  }, [userRole.loading, userRole.role, userRole.ministryId, userRole.headquartersId, userRole.regionalId, userRole.congregationId]);
 
   const effectiveCongregationIds = useMemo(() => {
     let pool = congregations;

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type AppRole =
   | "igreja_mae"
   | "igreja_sede"
+  | "admin_regional"
   | "secretario_ebd"
   | "professor_classe";
 
@@ -11,6 +12,7 @@ export interface UserRoleInfo {
   role: AppRole | null;
   ministryId: string | null;
   headquartersId: string | null;
+  regionalId: string | null;
   congregationId: string | null;
   loading: boolean;
 }
@@ -19,6 +21,7 @@ export interface UserRoleInfo {
 const ROLE_PRIORITY: AppRole[] = [
   "igreja_mae",
   "igreja_sede",
+  "admin_regional",
   "secretario_ebd",
   "professor_classe",
 ];
@@ -32,6 +35,7 @@ export function useUserRole(): UserRoleInfo {
     role: null,
     ministryId: null,
     headquartersId: null,
+    regionalId: null,
     congregationId: null,
     loading: true,
   });
@@ -46,6 +50,7 @@ export function useUserRole(): UserRoleInfo {
             role: null,
             ministryId: null,
             headquartersId: null,
+            regionalId: null,
             congregationId: null,
             loading: false,
           });
@@ -53,7 +58,7 @@ export function useUserRole(): UserRoleInfo {
       }
       const { data, error } = await supabase
         .from("user_roles" as any)
-        .select("role, ministry_id, headquarters_id, congregation_id");
+        .select("role, ministry_id, headquarters_id, regional_id, congregation_id");
 
       if (!active) return;
       if (error || !data || data.length === 0) {
@@ -61,6 +66,7 @@ export function useUserRole(): UserRoleInfo {
           role: null,
           ministryId: null,
           headquartersId: null,
+          regionalId: null,
           congregationId: null,
           loading: false,
         });
@@ -70,6 +76,7 @@ export function useUserRole(): UserRoleInfo {
         role: AppRole;
         ministry_id: string | null;
         headquarters_id: string | null;
+        regional_id: string | null;
         congregation_id: string | null;
       }>;
       const chosen =
@@ -80,6 +87,7 @@ export function useUserRole(): UserRoleInfo {
         role: chosen!.role,
         ministryId: chosen!.ministry_id ?? null,
         headquartersId: chosen!.headquarters_id ?? null,
+        regionalId: chosen!.regional_id ?? null,
         congregationId: chosen!.congregation_id ?? null,
         loading: false,
       });
