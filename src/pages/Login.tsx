@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { UserCog, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -48,6 +49,23 @@ const Login = () => {
         throw new Error("Não foi possível estabelecer uma sessão. Tente novamente.");
       }
 
+      // Bloqueia se a conta ainda esta pendente de aprovacao
+      const { data: pending } = await supabase
+        .from("pending_users" as any)
+        .select("status")
+        .eq("user_id", data.session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const pStatus = ((pending as any) ?? [])[0]?.status;
+      if (pStatus === "pending") {
+        await supabase.auth.signOut();
+        throw new Error("Sua conta está aguardando aprovação de um administrador.");
+      }
+      if (pStatus === "rejected") {
+        await supabase.auth.signOut();
+        throw new Error("Sua solicitação de acesso foi recusada.");
+      }
+
       // Identifica o papel do usuario para rotear corretamente
       const { data: roles } = await supabase
         .from("user_roles" as any)
@@ -62,7 +80,9 @@ const Login = () => {
         description: "A redirecionar...",
       });
 
-      if (has("igreja_mae")) {
+      if (has("master")) {
+        navigate("/admin?scope=master");
+      } else if (has("igreja_mae")) {
         navigate("/admin?scope=ministry");
       } else if (has("igreja_sede")) {
         navigate("/admin?scope=headquarters");
@@ -136,6 +156,10 @@ const Login = () => {
                 {isLoading ? "A entrar..." : "Entrar"}
               </Button>
             </form>
+            <p className="text-center text-xs text-muted-foreground mt-4">
+              Não tem conta?{" "}
+              <Link to="/signup" className="text-primary underline">Solicitar acesso</Link>
+            </p>
           </CardContent>
         </Card>
       </div>

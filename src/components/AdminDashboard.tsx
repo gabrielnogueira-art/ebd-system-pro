@@ -61,10 +61,20 @@ interface AbsentStudent {
   presentCount: number;
 }
 
-export const AdminDashboard = () => {
+interface AdminDashboardProps {
+  /** Restringe TODO o dashboard a uma unica congregacao (drill-down). */
+  congregationOverride?: string | null;
+}
+
+export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {}) => {
   const scope = useDashboardScope();
-  const classIds = scope.effectiveClassIds; // null = sem restricao
-  const scopeKey = scope.classIdsKey;
+  const baseClassIds = scope.effectiveClassIds; // null = sem restricao
+  const classIds = congregationOverride
+    ? scope.classes
+        .filter((c) => c.congregation_id === congregationOverride)
+        .map((c) => c.id)
+    : baseClassIds;
+  const scopeKey = (congregationOverride ?? "") + "|" + scope.classIdsKey;
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalStudents: 0,

@@ -7,6 +7,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ChoirView from "./pages/Choir"; // <-- 1. IMPORTAR A NOVA PÁGINA
 import Professor from "./pages/Professor";
+import Signup from "./pages/Signup";
 
 function RootGate() {
   const [state, setState] = useState<"loading" | "anon" | { to: string }>("loading");
@@ -23,7 +24,8 @@ function RootGate() {
       const list = ((roles as unknown) as Array<{ role: string }>) || [];
       const has = (r: string) => list.some((x) => x.role === r);
       let to = "/admin";
-      if (has("igreja_mae")) to = "/admin?scope=ministry";
+      if (has("master")) to = "/admin?scope=master";
+      else if (has("igreja_mae")) to = "/admin?scope=ministry";
       else if (has("igreja_sede")) to = "/admin?scope=headquarters";
       else if (has("admin_regional")) to = "/admin?scope=regional";
       else if (has("secretario_ebd")) to = "/admin?scope=congregation";
@@ -50,6 +52,7 @@ function App() {
         <Route path="/" element={<RootGate />} />
         <Route path="/form" element={<EBDRegistrationForm />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/professor" element={<Professor />} />
         <Route path="/coristas" element={<ChoirView />} /> {/* <-- 2. ADICIONAR A NOVA ROTA */}

@@ -1,61 +1,68 @@
 ## Contexto
 
-A arquitetura `Ministério → Sede → Regional → Congregação → Classe` já existe no banco (tabelas `ministries`, `headquarters`, `regionals`, `congregations`, `classes`, `students`, `registrations`) e o `user_roles` já possui escopos `ministry_id`, `headquarters_id`, `congregation_id`. Faltam 4 coisas que esta entrega vai cobrir:
-
-1. Indicador visual de conexão com o Supabase.
-2. Papel **`admin_regional`** (hoje só existe mãe, sede, secretário, professor).
-3. RLS bottom-up de verdade em `classes` / `students` / `registrations` (hoje as policies ainda são "anyone can…" — qualquer usuário lê tudo).
-4. Seed de **5 usuários de teste** já com role/escopo vinculados.
+Hoje temos: enum `app_role` com `igreja_mae`, `igreja_sede`, `admin_regional`, `secretario_ebd`, `professor_classe`; `user_roles` com escopos; RLS bottom-up funcional; 5 logins de teste seedados. Esta entrega adiciona o nível Master, o fluxo de aprovação de cadastros e o seed completo do Ministério Madureira (1 ministério → 3 sedes → 12 regionais → 120 congregações), além da navegação "minha igreja local ↔ congregações" na Sede e do drill-down por congregação.
 
 ## O que será feito
 
-### 1. Indicador de conexão Supabase
-- Novo hook `useSupabaseHealth()` que faz ping leve (`select count head` em `ministries`) a cada 30s e escuta `auth.onAuthStateChange`.
-- Novo componente `SupabaseStatusBadge` (canto inferior direito do `/admin` e `/professor`): bolinha verde "Conectado", amarela "Verificando", vermelha "Sem conexão" com tooltip detalhando URL do projeto e último erro.
-- Logs `console.error("[Supabase] ...")` claros em qualquer falha.
+### 1. Migration `20260615120000_master_and_approval.sql`
+- Adiciona `'master'` ao enum `app_role`.
+- Estende `user_can_see_congregation`: master vê tudo.
+- Nova função `is_master(uuid) → boolean`.
+- Cria coluna `city` em `ministries` (Madureira mora no RJ).
+- Cria tabela `pending_users` para fila de aprovação:
+  - `id`, `user_id` (FK auth.users), `email`, `display_name`, `requested_role`, `requested_scope_*` (ministry/headquarters/regional/congregation), `status` (`pending`|`approved`|`rejected`), `decided_by`, `decided_at`, `created_at`.
+  - GRANTs corretos + RLS: master enxerga/aprova tudo; usuário enxerga só o próprio pedido.
+- Trigger `on_auth_user_created` em `auth.users` que insere automaticamente em `pending_users` com `status='pending'` para qualquer signup novo (exceto seeds que vamos marcar como `approved`).
+- Função `approve_user(pending_id, role, ministry/hq/regional/cong)` `SECURITY DEFINER` que cria o `user_roles` final e marca como aprovado.
 
-### 2. Nova role `admin_regional`
-Migration adiciona:
-- Valor `admin_regional` no enum `app_role`.
-- Coluna `regional_id uuid` em `user_roles` (FK p/ `regionals`).
-- Função `get_user_regional(_user_id)`.
-- Atualiza `user_can_see_congregation` para também aceitar match por `regional_id`.
+### 2. Migration `20260615120100_seed_madureira.sql` (separada por causa do enum)
+- Cria usuário Master `master@ebd.dev` / `Master@2026` com role `master` (auto-aprovado).
+- Cria/atualiza ministério **"Assembleia de Deus Ministério Madureira"** (cidade: Rio de Janeiro).
+- Cria login `admadureira@gmail.com` / `Admadureira@2026` com role `igreja_mae` apontando para esse ministério.
+- Cria 3 headquarters: **AD Campos dos Goytacazes**, **AD Macaé**, **AD São Francisco de Itabapoana** vinculadas ao ministério Madureira.
+- Cria 12 regionais ("Regional 01" a "Regional 12") sob AD Campos.
+- Cria 120 congregações ("Congregação 1" a "Congregação 120"), 10 por regional.
+- Reassocia o login existente `admin_igreja_mae@teste.com` para ser admin da Sede **AD Campos dos Goytacazes** (UPDATE em `user_roles.headquarters_id`).
+- Cria 1 classe "Geral" em cada uma das 120 congregações (para o drill-down já ter algo, ainda que vazio).
 
-Frontend:
-- `useUserRole` passa a retornar `regionalId`.
-- `useDashboardScope` filtra hierarquia visível para `admin_regional` (apenas sua regional + congregações filhas).
-- `Login.tsx` roteia `admin_regional → /admin?scope=regional`.
+### 3. Frontend
 
-### 3. RLS bottom-up real
-Migration substitui as policies "Anyone can…" em `classes`, `students`, `registrations` por:
-- `SELECT/INSERT/UPDATE/DELETE` permitidos quando `public.user_can_see_congregation(auth.uid(), <congregation_da_classe>)` for true.
-- Para `registrations` e `students` usa subquery: `class_id IN (SELECT id FROM classes WHERE user_can_see_congregation(auth.uid(), congregation_id))`.
-- Mantém `service_role` total e `GRANT`s adequados.
+**Login (`Login.tsx` + `App.tsx`):**
+- Master roteia para `/admin?scope=master`.
+- Bloqueia login se `pending_users.status='pending'` mostrando mensagem "Aguardando aprovação".
 
-Resultado: cada nível só enxerga o que está abaixo de si na hierarquia, e a Congregação fica isolada (atende o requisito "bottom-up").
+**Cadastro público:**
+- Adiciona link "Criar conta" na tela de login → `/signup` (novo). O signup pede nome + e-mail + senha + role solicitado + escopo. Após criar, mostra "Sua conta está aguardando aprovação".
 
-### 4. Seed de usuários de teste
-Migration insere via `auth.users` (padrão Supabase com `encrypted_password = crypt('senha123', gen_salt('bf'))`) e popula `user_roles`:
+**Painel Master (`MasterApprovalsTab.tsx`):**
+- Nova aba "Aprovações" visível só para role `master`.
+- Lista `pending_users` com botões Aprovar/Rejeitar + selects de role e escopo.
+- Master também tem todas as abas existentes (visão global).
 
-| Email | Senha | Role | Escopo |
-|---|---|---|---|
-| admin_ministerio@teste.com | senha123 | igreja_mae | Ministério padrão |
-| admin_igreja_mae@teste.com | senha123 | igreja_sede | Sede principal |
-| admin_regional@teste.com | senha123 | admin_regional | Regional Central |
-| admin_congregacao@teste.com | senha123 | secretario_ebd | Congregação principal |
-| professor_classe@teste.com | senha123 | professor_classe | Classe 1 |
+**Painel Ministério (`AdminDashboard` quando `scope=ministry`):**
+- Já filtra via `useDashboardScope`. Adiciona um cartão de topo "Igrejas Sede" listando as Sedes daquele Ministério com botão "Editar" (abre modal já existente em `HierarchyTab`).
 
-Inserts idempotentes (`ON CONFLICT DO NOTHING`) usando UUIDs determinísticos.
+**Painel Sede com toggle (`SedeViewToggle.tsx`):**
+- No topo do Admin quando `role='igreja_sede'`, dois botões grandes:
+  - **"EBD da minha igreja"** → filtra dashboard pela congregação `is_headquarters=true` da Sede.
+  - **"Visão das Congregações"** → mostra lista de congregações dessa Sede, com Regional como agrupador; clicar em uma congregação trava o filtro do dashboard nela (drill-down) e mostra um botão "Voltar".
+- Estado salvo em query param (`?view=local|congregations|cong:<id>`).
+
+**Edição de Congregação/Sede:**
+- `HierarchyTab` já tem CRUD. Vou habilitar inline edit (nome, regional) também na lista de congregações da Sede.
+
+### 4. Memória de projeto
+Salvo regra em `mem://features/hierarquia/aprovacao-master` resumindo o fluxo de aprovação para próximas sessões.
 
 ## Detalhes técnicos
+- 2 migrations separadas (enum → uso).
+- Trigger usa `SECURITY DEFINER` para inserir em `pending_users`.
+- Seed de 120 congregações via `generate_series` em loop com `DO $$`.
+- RLS de `pending_users`: master full, dono lê o seu.
+- Não mexe no `EBDRegistrationForm` nem nos relatórios.
 
-- 1 nova migration: `20260610090000_admin_regional_and_seed.sql` (enum + coluna + funcs + RLS + seed users).
-- Arquivos novos: `src/hooks/useSupabaseHealth.ts`, `src/components/SupabaseStatusBadge.tsx`.
-- Editados: `src/hooks/useUserRole.ts`, `src/hooks/useDashboardScope.ts`, `src/pages/Login.tsx`, `src/pages/Admin.tsx`, `src/pages/Professor.tsx`.
-- Não toca em `EBDRegistrationForm` nem nos dashboards visuais existentes.
+## Fora do escopo
+- E-mail de notificação ao usuário quando for aprovado (pode vir depois via edge function).
+- Permitir que `igreja_mae` também aprove usuários (hoje só master).
 
-## Fora do escopo (pode vir depois)
-- Tela de admin para criar professores e atribuir classes (já existe parcialmente).
-- Refatoração visual dos dashboards por escopo (Iteração 2 já cobriu).
-
-Confirmo para implementar tudo de uma vez?
+Confirmo para implementar tudo?
