@@ -13,12 +13,18 @@ import { HierarchyTab } from "@/components/HierarchyTab";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
+import { SedeViewSwitcher } from "@/components/SedeViewSwitcher";
+import { MasterApprovalsTab } from "@/components/MasterApprovalsTab";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const userRole = useUserRole();
+  const isMaster = userRole.role === "master";
+  const isSede = userRole.role === "igreja_sede";
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -74,17 +80,22 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className={`grid w-full ${isMaster ? "grid-cols-7" : "grid-cols-6"}`}>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="registrations">Registros</TabsTrigger>
             <TabsTrigger value="confronto">Confronto</TabsTrigger>
             <TabsTrigger value="students">Alunos</TabsTrigger>
             <TabsTrigger value="reports">Relatórios</TabsTrigger>
             <TabsTrigger value="hierarchy">Estrutura</TabsTrigger>
+            {isMaster && <TabsTrigger value="approvals">Aprovações</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="dashboard">
-            <AdminDashboard key={`dashboard-${refreshKey}`} />
+            {isSede ? (
+              <SedeViewSwitcher key={`sede-${refreshKey}`} />
+            ) : (
+              <AdminDashboard key={`dashboard-${refreshKey}`} />
+            )}
           </TabsContent>
 
           <TabsContent value="registrations">
@@ -106,6 +117,12 @@ const Admin = () => {
           <TabsContent value="hierarchy">
             <HierarchyTab key={`hierarchy-${refreshKey}`} />
           </TabsContent>
+
+          {isMaster && (
+            <TabsContent value="approvals">
+              <MasterApprovalsTab key={`approvals-${refreshKey}`} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
       <SupabaseStatusBadge />
