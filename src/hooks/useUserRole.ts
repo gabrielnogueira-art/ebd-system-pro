@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole =
+  | "master"
   | "igreja_mae"
   | "igreja_sede"
   | "admin_regional"
@@ -19,6 +20,7 @@ export interface UserRoleInfo {
 
 // Prioridade do mais alto pro mais baixo
 const ROLE_PRIORITY: AppRole[] = [
+  "master",
   "igreja_mae",
   "igreja_sede",
   "admin_regional",
