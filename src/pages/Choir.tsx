@@ -52,7 +52,7 @@ const ChoirView = () => {
         
         const formattedHymns = data.map(item => ({
           hymn: item.hymn,
-          // @ts-ignore
+          // @ts-expect-error
           class_name: item.classes?.name || "Classe desconhecida"
         }));
 

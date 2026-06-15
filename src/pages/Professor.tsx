@@ -3,17 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRole } from "@/hooks/useUserRole";
 import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
+import { ProfessorStudentsTab } from "@/components/ProfessorStudentsTab";
+import { ProfessorAttendanceTab } from "@/components/ProfessorAttendanceTab";
+import { ProfessorDashboardTab } from "@/components/ProfessorDashboardTab";
 
-/**
- * Placeholder da Visao do Professor/Secretario da Classe (mobile-first).
- * Fase 2 implementara: chamada, gestao de alunos da classe e dashboard da classe.
- */
 const Professor = () => {
   const navigate = useNavigate();
   const { role, loading } = useUserRole();
   const [checking, setChecking] = useState(true);
+  const [classId, setClassId] = useState<number | null>(null);
 
   useEffect(() => {
     const check = async () => {
@@ -22,6 +23,19 @@ const Professor = () => {
         navigate("/login");
         return;
       }
+      
+      // Fetch teacher's class
+      const { data: teacherClass } = await supabase
+        .from("teacher_classes")
+        .select("class_id")
+        .eq("user_id", session.user.id)
+        .limit(1)
+        .maybeSingle();
+        
+      if (teacherClass) {
+        setClassId(teacherClass.class_id);
+      }
+      
       setChecking(false);
     };
     check();
@@ -53,20 +67,37 @@ const Professor = () => {
           <h1 className="text-2xl font-bold text-primary">Minha Classe</h1>
           <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Em construção</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Em breve aqui você terá:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Chamada de aula com Bíblia/Revista por aluno</li>
-              <li>Gestão dos alunos da sua classe</li>
-              <li>Dashboard de presença, ofertas e aniversariantes</li>
-              <li>Rankings e filtro por trimestre/período</li>
-            </ul>
-          </CardContent>
-        </Card>
+        
+        {!classId ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Nenhuma classe vinculada</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Você ainda não foi vinculado a nenhuma classe. Procure o Secretário da EBD.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Tabs defaultValue="alunos" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="alunos">Alunos</TabsTrigger>
+              <TabsTrigger value="chamada">Chamada</TabsTrigger>
+              <TabsTrigger value="dashboard">Painel</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="alunos">
+              <ProfessorStudentsTab classId={classId} />
+            </TabsContent>
+            
+            <TabsContent value="chamada">
+              <ProfessorAttendanceTab classId={classId} />
+            </TabsContent>
+            
+            <TabsContent value="dashboard">
+              <ProfessorDashboardTab classId={classId} />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
       <SupabaseStatusBadge />
     </div>

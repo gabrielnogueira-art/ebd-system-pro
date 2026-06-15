@@ -10,6 +10,7 @@ import { StudentsManagement } from "@/components/StudentsManagement";
 import { ReportsTab } from "@/components/ReportsTab";
 import { ConfrontoTab } from "@/components/ConfrontoTab";
 import { HierarchyTab } from "@/components/HierarchyTab";
+import { ClassesManagement } from "@/components/ClassesManagement";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
@@ -80,10 +81,11 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className={`grid w-full ${isMaster ? "grid-cols-7" : "grid-cols-6"}`}>
+          <TabsList className={`grid w-full ${isMaster ? "grid-cols-8" : "grid-cols-7"}`}>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="registrations">Registros</TabsTrigger>
             <TabsTrigger value="confronto">Confronto</TabsTrigger>
+            <TabsTrigger value="classes">Classes</TabsTrigger>
             <TabsTrigger value="students">Alunos</TabsTrigger>
             <TabsTrigger value="reports">Relatórios</TabsTrigger>
             <TabsTrigger value="hierarchy">Estrutura</TabsTrigger>
@@ -104,6 +106,10 @@ const Admin = () => {
 
           <TabsContent value="confronto">
             <ConfrontoTab key={`confronto-${refreshKey}`} />
+          </TabsContent>
+
+          <TabsContent value="classes">
+            <ClassesManagement key={`classes-${refreshKey}`} />
           </TabsContent>
 
           <TabsContent value="students">

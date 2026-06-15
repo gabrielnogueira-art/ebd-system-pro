@@ -473,27 +473,33 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         todayQ = withClassFilter(todayQ as any, "class_id");
         const { count: todayRegistrations } = await todayQ;
 
-        let aggQ = supabase.from("registrations").select("total_present, visitors, offering_cash, offering_pix, class_id");
+        let aggQ = supabase.from("registrations").select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id");
         aggQ = withClassFilter(aggQ as any, "class_id");
         const { data: aggregatedData } = await aggQ;
 
         let totalPresence = 0, totalVisitors = 0, totalOfferings = 0;
+        const uniqueDates = new Set<string>();
 
         if (aggregatedData) {
             aggregatedData.forEach((record) => {
+            if (record.registration_date) {
+                uniqueDates.add(record.registration_date.split('T')[0]);
+            }
             totalPresence += record.total_present || 0;
             totalVisitors += record.visitors || 0;
             totalOfferings += (parseFloat(String(record.offering_cash || 0)) + parseFloat(String(record.offering_pix || 0)));
             });
         }
+        
+        const numSundays = uniqueDates.size || 1;
 
         setStats({
             totalRegistrations: totalRegistrations || 0,
             totalStudents: totalStudents || 0,
             totalClasses: totalClasses || 0,
             todayRegistrations: todayRegistrations || 0,
-            totalPresence,
-            totalVisitors,
+            totalPresence: uniqueDates.size > 0 ? Math.round(totalPresence / numSundays) : 0,
+            totalVisitors: uniqueDates.size > 0 ? Math.round(totalVisitors / numSundays) : 0,
             totalOfferings,
         });
     } catch (error) {
@@ -595,8 +601,8 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
             <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Alunos</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-blue-600">{stats.totalStudents}</div></CardContent></Card>
             <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Registros Totais</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-green-600">{stats.totalRegistrations}</div></CardContent></Card>
             <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Registros Hoje</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-emerald-600">{stats.todayRegistrations}</div></CardContent></Card>
-            <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Presenças</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-purple-600">{stats.totalPresence}</div></CardContent></Card>
-            <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Visitantes</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-orange-600">{stats.totalVisitors}</div></CardContent></Card>
+            <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Média de Frequência</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-purple-600">{stats.totalPresence}</div></CardContent></Card>
+            <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Média de Visitantes</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-orange-600">{stats.totalVisitors}</div></CardContent></Card>
             <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-yellow-500/20 md:col-span-2"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Ofertas</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-yellow-600">R$ {stats.totalOfferings.toFixed(2).replace('.', ',')}</div></CardContent></Card>
         </div>
 
@@ -793,9 +799,15 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                                     <XAxis dataKey="dayOfWeek" />
                                     <YAxis />
                                     <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Bar dataKey="present" fill="#FB923C" name="Presentes" stackId="a" />
-                                    <Bar dataKey="absent" fill="#A78BFA" name="Ausentes" stackId="a" />
-                                    <Line type="monotone" dataKey="enrolled" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} name="Matriculados" />
+                                    <Bar dataKey="present" fill="#FB923C" name="Presentes" stackId="a">
+                                        <LabelList dataKey="present" position="center" fill="#fff" fontSize={12} />
+                                    </Bar>
+                                    <Bar dataKey="absent" fill="#A78BFA" name="Ausentes" stackId="a">
+                                        <LabelList dataKey="absent" position="center" fill="#fff" fontSize={12} />
+                                    </Bar>
+                                    <Line type="monotone" dataKey="enrolled" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} name="Matriculados">
+                                        <LabelList dataKey="enrolled" position="top" fontSize={12} />
+                                    </Line>
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </ChartContainer>
@@ -807,7 +819,9 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                                 <XAxis dataKey="day" />
                                 <YAxis />
                                 <ChartTooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="offerings" fill="hsl(var(--primary))" name="Ofertas (R$)" />
+                                <Bar dataKey="offerings" fill="hsl(var(--primary))" name="Ofertas (R$)">
+                                    <LabelList dataKey="offerings" position="top" formatter={(value: number) => `R$ ${value.toFixed(2).replace('.', ',')}`} fontSize={12} />
+                                </Bar>
                             </BarChart>
                         </ChartContainer>
                     </TabsContent>
@@ -909,7 +923,14 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                                                                                     <Trophy className={`h-4 w-4 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-orange-400'}`} />
                                                                                     <span className="font-medium">{i + 1}º {cls.className}</span>
                                                                                 </div>
-                                                                                <span className="font-mono font-semibold">{cls[metric.key]}%</span>
+                                                                                <div className="flex flex-col items-end">
+                                                                                    <span className="font-mono font-semibold">{cls[metric.key]}%</span>
+                                                                                    <span className="text-xs text-muted-foreground">
+                                                                                        {metric.key === "presenceRate" ? `${cls.present} pres.` : 
+                                                                                         metric.key === "biblesRate" ? `${cls.totalBibles} bíblias` : 
+                                                                                         `${cls.totalMagazines} revistas`}
+                                                                                    </span>
+                                                                                </div>
                                                                             </div>
                                                                         ))}
                                                                     </div>

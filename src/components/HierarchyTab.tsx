@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type Ministry = { id: string; name: string };
 type Headquarters = { id: string; name: string; city: string | null; ministry_id: string };
@@ -45,6 +46,26 @@ export const HierarchyTab = () => {
 
   // edit name (inline)
   const [editing, setEditing] = useState<{ table: string; id: string; value: string } | null>(null);
+
+  // edit full congregation
+  const [editingCongregation, setEditingCongregation] = useState<Congregation | null>(null);
+
+  const saveCongregationEdit = async () => {
+    if (!editingCongregation) return;
+    if (!editingCongregation.name.trim() || !editingCongregation.headquarters_id) return;
+    
+    const { error } = await db.from("congregations").update({
+      name: editingCongregation.name.trim(),
+      headquarters_id: editingCongregation.headquarters_id,
+      regional_id: editingCongregation.regional_id || null,
+      is_headquarters: editingCongregation.is_headquarters,
+    }).eq("id", editingCongregation.id);
+    
+    if (error) return handleError(error, "Falha ao atualizar");
+    setEditingCongregation(null);
+    ok("Congregação atualizada");
+    load();
+  };
 
   const load = async () => {
     const [m, h, r, c, cl] = await Promise.all([
@@ -458,7 +479,7 @@ export const HierarchyTab = () => {
             <TableBody>
               {congregations.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell>{renderNameCell("congregations", c)}</TableCell>
+                  <TableCell>{c.name}</TableCell>
                   <TableCell>{hqName(c.headquarters_id)}</TableCell>
                   <TableCell>{regionalName(c.regional_id)}</TableCell>
                   <TableCell>
@@ -469,13 +490,22 @@ export const HierarchyTab = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeRow("congregations", c.id, c.name)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setEditingCongregation(c)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeRow("congregations", c.id, c.name)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -527,6 +557,76 @@ export const HierarchyTab = () => {
           </Table>
         </CardContent>
       </Card>
+      <Dialog open={!!editingCongregation} onOpenChange={(open) => !open && setEditingCongregation(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Congregação</DialogTitle>
+          </DialogHeader>
+          {editingCongregation && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={editingCongregation.name}
+                  onChange={(e) => setEditingCongregation({ ...editingCongregation, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Igreja Sede</Label>
+                <Select
+                  value={editingCongregation.headquarters_id}
+                  onValueChange={(v) => setEditingCongregation({ ...editingCongregation, headquarters_id: v, regional_id: null })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {headquarters.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Regional (Opcional)</Label>
+                <Select
+                  value={editingCongregation.regional_id || "none"}
+                  onValueChange={(v) => setEditingCongregation({ ...editingCongregation, regional_id: v === "none" ? null : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {regionals
+                      .filter((r) => !editingCongregation.headquarters_id || r.headquarters_id === editingCongregation.headquarters_id)
+                      .map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="edit-is-hq"
+                  checked={editingCongregation.is_headquarters}
+                  onChange={(e) => setEditingCongregation({ ...editingCongregation, is_headquarters: e.target.checked })}
+                />
+                <Label htmlFor="edit-is-hq">É sede</Label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCongregation(null)}>Cancelar</Button>
+            <Button onClick={saveCongregationEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

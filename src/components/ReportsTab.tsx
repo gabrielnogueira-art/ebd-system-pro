@@ -223,7 +223,7 @@ export const ReportsTab = () => {
   const [ebdObservations, setEbdObservations] = useState<string>("");
   const [reportTheme, setReportTheme] = useState<string>(() => {
     const saved = localStorage.getItem("ebd-report-theme");
-    return saved || "2025 ANO DA CELEBRAÇÃO - SALMOS 35.27";
+    return saved || `${new Date().getFullYear()} ANO DA CELEBRAÇÃO - SALMOS 35.27`;
   });
 
   // Persistir reportTheme no localStorage

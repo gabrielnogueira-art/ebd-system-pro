@@ -25,9 +25,9 @@ export function DashboardScopeFilter({ scope }: Props) {
   if (role === "secretario_ebd") return null;
   if (role === "professor_classe") return null;
 
-  const canPickHq = role === "igreja_mae";
-  const canPickRegional = role === "igreja_mae" || role === "igreja_sede";
-  const canPickCong = role === "igreja_mae" || role === "igreja_sede";
+  const canPickHq = role === "igreja_mae" || role === "master";
+  const canPickRegional = role === "igreja_mae" || role === "igreja_sede" || role === "master";
+  const canPickCong = role === "igreja_mae" || role === "igreja_sede" || role === "master" || role === "admin_regional";
 
   // Regionais visiveis dependem da Sede selecionada
   const regionalsForUI = selectedHeadquartersId === "all"

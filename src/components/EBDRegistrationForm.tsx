@@ -372,6 +372,15 @@ export const EBDRegistrationForm = () => {
       toast({ variant: "destructive", title: "Erro de validação", description: "Por favor, selecione uma classe." });
       return;
     }
+
+    if (bibles > presentStudents.length || magazines > presentStudents.length) {
+      toast({ 
+        variant: "destructive", 
+        title: "Erro de validação", 
+        description: `O número de bíblias (${bibles}) ou revistas (${magazines}) não pode ser maior que o número de alunos matriculados presentes (${presentStudents.length}).` 
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Delete files from storage if requested

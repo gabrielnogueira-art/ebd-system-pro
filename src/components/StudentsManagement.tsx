@@ -19,6 +19,7 @@ interface Student {
   address: string | null;
   phone: string | null;
   birth_date: string | null;
+  cargo?: string | null;
   class_id: number;
   active: boolean;
   classes?: {
@@ -39,6 +40,7 @@ export const StudentsManagement = () => {
   const [newStudentAddress, setNewStudentAddress] = useState("");
   const [newStudentPhone, setNewStudentPhone] = useState("");
   const [newStudentBirthDate, setNewStudentBirthDate] = useState("");
+  const [newStudentCargo, setNewStudentCargo] = useState("");
   const [newStudentClassId, setNewStudentClassId] = useState("");
   const { toast } = useToast();
   
@@ -48,13 +50,14 @@ export const StudentsManagement = () => {
   const [editStudentAddress, setEditStudentAddress] = useState("");
   const [editStudentPhone, setEditStudentPhone] = useState("");
   const [editStudentBirthDate, setEditStudentBirthDate] = useState("");
+  const [editStudentCargo, setEditStudentCargo] = useState("");
   const [editStudentClassId, setEditStudentClassId] = useState("");
   
   // Delete dialog state
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   
   // Sort state
-  const [sortColumn, setSortColumn] = useState<'name' | 'phone' | 'class' | 'status' | null>(null);
+  const [sortColumn, setSortColumn] = useState<'name' | 'phone' | 'cargo' | 'class' | 'status' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Search state
@@ -105,11 +108,11 @@ export const StudentsManagement = () => {
   };
 
   const addStudent = async () => {
-    if (!newStudentName.trim() || !newStudentClassId) {
+    if (!newStudentName.trim() || !newStudentClassId || !newStudentCargo) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Preencha pelo menos o nome e a classe.",
+        description: "Preencha pelo menos o nome, a classe e o cargo.",
       });
       return;
     }
@@ -123,6 +126,7 @@ export const StudentsManagement = () => {
             address: newStudentAddress.trim(),
             phone: newStudentPhone.trim(),
             birth_date: newStudentBirthDate || null,
+            cargo: newStudentCargo || null,
             class_id: parseInt(newStudentClassId),
             active: true
           }
@@ -139,6 +143,7 @@ export const StudentsManagement = () => {
       setNewStudentAddress("");
       setNewStudentPhone("");
       setNewStudentBirthDate("");
+      setNewStudentCargo("");
       setNewStudentClassId("");
       fetchData();
     } catch (error) {
@@ -157,15 +162,16 @@ export const StudentsManagement = () => {
     setEditStudentAddress(student.address || "");
     setEditStudentPhone(student.phone || "");
     setEditStudentBirthDate(student.birth_date || "");
+    setEditStudentCargo(student.cargo || "");
     setEditStudentClassId(student.class_id.toString());
   };
 
   const saveStudentEdit = async () => {
-    if (!editingStudent || !editStudentName.trim() || !editStudentClassId) {
+    if (!editingStudent || !editStudentName.trim() || !editStudentClassId || !editStudentCargo) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Preencha pelo menos o nome e a classe.",
+        description: "Preencha pelo menos o nome, a classe e o cargo.",
       });
       return;
     }
@@ -178,6 +184,7 @@ export const StudentsManagement = () => {
           address: editStudentAddress.trim() || null,
           phone: editStudentPhone.trim() || null,
           birth_date: editStudentBirthDate || null,
+          cargo: editStudentCargo || null,
           class_id: parseInt(editStudentClassId),
         })
         .eq("id", editingStudent.id);
@@ -254,7 +261,7 @@ export const StudentsManagement = () => {
     }
   };
 
-  const handleSort = (column: 'name' | 'phone' | 'class' | 'status') => {
+  const handleSort = (column: 'name' | 'phone' | 'cargo' | 'class' | 'status') => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -282,24 +289,32 @@ export const StudentsManagement = () => {
     switch (sortColumn) {
       case 'name':
         return direction * a.name.localeCompare(b.name);
-      case 'phone':
+      case 'phone': {
         const phoneA = a.phone || '';
         const phoneB = b.phone || '';
         return direction * phoneA.localeCompare(phoneB);
-      case 'class':
+      }
+      case 'cargo': {
+        const cargoA = a.cargo || '';
+        const cargoB = b.cargo || '';
+        return direction * cargoA.localeCompare(cargoB);
+      }
+      case 'class': {
         const classA = a.classes?.name || '';
         const classB = b.classes?.name || '';
         return direction * classA.localeCompare(classB);
-      case 'status':
+      }
+      case 'status': {
         const statusA = a.active ? 1 : 0;
         const statusB = b.active ? 1 : 0;
         return direction * (statusA - statusB);
+      }
       default:
         return 0;
     }
   });
 
-  const SortIcon = ({ column }: { column: 'name' | 'phone' | 'class' | 'status' }) => {
+  const SortIcon = ({ column }: { column: 'name' | 'phone' | 'cargo' | 'class' | 'status' }) => {
     if (sortColumn !== column) {
       return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />;
     }
@@ -349,6 +364,23 @@ export const StudentsManagement = () => {
                 value={newStudentBirthDate}
                 onChange={(e) => setNewStudentBirthDate(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student-cargo">Cargo *</Label>
+              <Select value={newStudentCargo} onValueChange={setNewStudentCargo}>
+                <SelectTrigger id="student-cargo">
+                  <SelectValue placeholder="Selecione o cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Membro">Membro</SelectItem>
+                  <SelectItem value="Congregado">Congregado</SelectItem>
+                  <SelectItem value="Obreiro">Obreiro</SelectItem>
+                  <SelectItem value="Diácono">Diácono</SelectItem>
+                  <SelectItem value="Presbítero">Presbítero</SelectItem>
+                  <SelectItem value="Pastor">Pastor</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2 md:col-span-2 lg:col-span-1">
               <Label htmlFor="student-address">Endereço</Label>
@@ -425,6 +457,15 @@ export const StudentsManagement = () => {
                   </TableHead>
                   <TableHead 
                     className="cursor-pointer select-none"
+                    onClick={() => handleSort('cargo')}
+                  >
+                    <div className="flex items-center">
+                      Cargo
+                      <SortIcon column="cargo" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer select-none"
                     onClick={() => handleSort('class')}
                   >
                     <div className="flex items-center">
@@ -461,6 +502,9 @@ export const StudentsManagement = () => {
                     </TableCell>
                     <TableCell>
                       {student.phone || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {student.cargo || "-"}
                     </TableCell>
                     <TableCell className="max-w-[300px] truncate">
                       {student.classes?.name}
@@ -556,6 +600,23 @@ export const StudentsManagement = () => {
                 value={editStudentBirthDate}
                 onChange={(e) => setEditStudentBirthDate(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-student-cargo">Cargo *</Label>
+              <Select value={editStudentCargo} onValueChange={setEditStudentCargo}>
+                <SelectTrigger id="edit-student-cargo">
+                  <SelectValue placeholder="Selecione o cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Membro">Membro</SelectItem>
+                  <SelectItem value="Congregado">Congregado</SelectItem>
+                  <SelectItem value="Obreiro">Obreiro</SelectItem>
+                  <SelectItem value="Diácono">Diácono</SelectItem>
+                  <SelectItem value="Presbítero">Presbítero</SelectItem>
+                  <SelectItem value="Pastor">Pastor</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-student-address">Endereço</Label>
