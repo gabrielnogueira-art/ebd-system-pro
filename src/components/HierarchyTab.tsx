@@ -722,6 +722,153 @@ export const HierarchyTab = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Ministry */}
+      <Dialog open={!!editingMinistry} onOpenChange={(open) => !open && setEditingMinistry(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Ministério</DialogTitle></DialogHeader>
+          {editingMinistry && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={editingMinistry.name}
+                  onChange={(e) => setEditingMinistry({ ...editingMinistry, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cidade</Label>
+                <Input
+                  value={editingMinistry.city ?? ""}
+                  onChange={(e) => setEditingMinistry({ ...editingMinistry, city: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMinistry(null)}>Cancelar</Button>
+            <Button onClick={saveMinistryEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Headquarters */}
+      <Dialog open={!!editingHq} onOpenChange={(open) => !open && setEditingHq(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Igreja Sede</DialogTitle></DialogHeader>
+          {editingHq && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={editingHq.name}
+                  onChange={(e) => setEditingHq({ ...editingHq, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cidade</Label>
+                <Input
+                  value={editingHq.city ?? ""}
+                  onChange={(e) => setEditingHq({ ...editingHq, city: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Ministério</Label>
+                <Select
+                  value={editingHq.ministry_id}
+                  onValueChange={(v) => setEditingHq({ ...editingHq, ministry_id: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {ministries.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingHq(null)}>Cancelar</Button>
+            <Button onClick={saveHqEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Regional */}
+      <Dialog open={!!editingRegional} onOpenChange={(open) => !open && setEditingRegional(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Regional</DialogTitle></DialogHeader>
+          {editingRegional && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={editingRegional.name}
+                  onChange={(e) => setEditingRegional({ ...editingRegional, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Igreja Sede</Label>
+                <Select
+                  value={editingRegional.headquarters_id}
+                  onValueChange={(v) => setEditingRegional({ ...editingRegional, headquarters_id: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {headquarters.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRegional(null)}>Cancelar</Button>
+            <Button onClick={saveRegionalEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Class */}
+      <Dialog open={!!editingClass} onOpenChange={(open) => !open && setEditingClass(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Classe</DialogTitle></DialogHeader>
+          {editingClass && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={editingClass.name}
+                  onChange={(e) => setEditingClass({ ...editingClass, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Congregação</Label>
+                <Select
+                  value={editingClass.congregation_id ?? "none"}
+                  onValueChange={(v) => setEditingClass({ ...editingClass, congregation_id: v === "none" ? null : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {congregations.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({hqName(c.headquarters_id)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingClass(null)}>Cancelar</Button>
+            <Button onClick={saveClassEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

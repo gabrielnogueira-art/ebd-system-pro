@@ -50,9 +50,8 @@ const ChoirView = () => {
 
         if (error) throw error;
         
-        const formattedHymns = data.map(item => ({
+        const formattedHymns = (data as any[]).map(item => ({
           hymn: item.hymn,
-          // @ts-expect-error
           class_name: item.classes?.name || "Classe desconhecida"
         }));
 
