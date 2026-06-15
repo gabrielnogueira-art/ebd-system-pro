@@ -34,10 +34,11 @@ BEGIN
      WHERE id = v_master_id;
   END IF;
 
+  DELETE FROM auth.identities
+  WHERE user_id = v_master_id AND provider = 'email';
+
   INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-  VALUES (v_master_id, v_master_id, jsonb_build_object('sub', v_master_id::text, 'email', v_master_email), 'email', v_master_id::text, now(), now(), now())
-  ON CONFLICT (provider, provider_id) DO UPDATE
-    SET user_id = EXCLUDED.user_id, identity_data = EXCLUDED.identity_data, updated_at = now();
+  VALUES (v_master_id, v_master_id, jsonb_build_object('sub', v_master_id::text, 'email', v_master_email), 'email', v_master_id::text, now(), now(), now());
 
   SELECT id INTO v_ministry_user_id FROM auth.users WHERE lower(email) = lower(v_ministry_email) LIMIT 1;
   IF v_ministry_user_id IS NULL THEN
@@ -63,10 +64,11 @@ BEGIN
      WHERE id = v_ministry_user_id;
   END IF;
 
+  DELETE FROM auth.identities
+  WHERE user_id = v_ministry_user_id AND provider = 'email';
+
   INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-  VALUES (v_ministry_user_id, v_ministry_user_id, jsonb_build_object('sub', v_ministry_user_id::text, 'email', v_ministry_email), 'email', v_ministry_user_id::text, now(), now(), now())
-  ON CONFLICT (provider, provider_id) DO UPDATE
-    SET user_id = EXCLUDED.user_id, identity_data = EXCLUDED.identity_data, updated_at = now();
+  VALUES (v_ministry_user_id, v_ministry_user_id, jsonb_build_object('sub', v_ministry_user_id::text, 'email', v_ministry_email), 'email', v_ministry_user_id::text, now(), now(), now());
 
   INSERT INTO public.ministries (id, name, city)
   VALUES (v_ministry_id, 'Assembleia de Deus Ministério Madureira', 'Rio de Janeiro')

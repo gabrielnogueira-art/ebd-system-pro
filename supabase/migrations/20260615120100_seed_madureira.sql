@@ -39,6 +39,9 @@ BEGIN
        WHERE id = v_existing;
     END IF;
 
+    DELETE FROM auth.identities
+    WHERE user_id = v_existing AND provider = 'email';
+
     INSERT INTO auth.identities (
       id, user_id, identity_data, provider, provider_id,
       last_sign_in_at, created_at, updated_at
@@ -46,8 +49,7 @@ BEGIN
       v_existing, v_existing,
       jsonb_build_object('sub', v_existing::text, 'email', v_email),
       'email', v_existing::text, now(), now(), now()
-    ) ON CONFLICT (provider, provider_id) DO UPDATE
-      SET user_id = EXCLUDED.user_id, identity_data = EXCLUDED.identity_data, updated_at = now();
+    );
   END LOOP;
 END
 $blk$;
