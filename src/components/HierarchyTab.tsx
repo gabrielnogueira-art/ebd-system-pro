@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-type Ministry = { id: string; name: string };
+type Ministry = { id: string; name: string; city: string | null };
 type Headquarters = { id: string; name: string; city: string | null; ministry_id: string };
 type Regional = { id: string; name: string; headquarters_id: string };
 type Congregation = {
@@ -34,7 +34,7 @@ export const HierarchyTab = () => {
   const [classes, setClasses] = useState<ClassRow[]>([]);
 
   // forms
-  const [newMinistry, setNewMinistry] = useState("");
+  const [newMinistry, setNewMinistry] = useState({ name: "", city: "" });
   const [newHq, setNewHq] = useState({ name: "", city: "", ministry_id: "" });
   const [newRegional, setNewRegional] = useState({ name: "", headquarters_id: "" });
   const [newCong, setNewCong] = useState({
@@ -49,6 +49,61 @@ export const HierarchyTab = () => {
 
   // edit full congregation
   const [editingCongregation, setEditingCongregation] = useState<Congregation | null>(null);
+
+  // edit full row dialogs
+  const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
+  const [editingHq, setEditingHq] = useState<Headquarters | null>(null);
+  const [editingRegional, setEditingRegional] = useState<Regional | null>(null);
+  const [editingClass, setEditingClass] = useState<ClassRow | null>(null);
+
+  const saveMinistryEdit = async () => {
+    if (!editingMinistry || !editingMinistry.name.trim()) return;
+    const { error } = await db.from("ministries").update({
+      name: editingMinistry.name.trim(),
+      city: editingMinistry.city?.trim() || null,
+    }).eq("id", editingMinistry.id);
+    if (error) return handleError(error, "Falha ao atualizar");
+    setEditingMinistry(null);
+    ok("Ministério atualizado");
+    load();
+  };
+
+  const saveHqEdit = async () => {
+    if (!editingHq || !editingHq.name.trim() || !editingHq.ministry_id) return;
+    const { error } = await db.from("headquarters").update({
+      name: editingHq.name.trim(),
+      city: editingHq.city?.trim() || null,
+      ministry_id: editingHq.ministry_id,
+    }).eq("id", editingHq.id);
+    if (error) return handleError(error, "Falha ao atualizar");
+    setEditingHq(null);
+    ok("Igreja Sede atualizada");
+    load();
+  };
+
+  const saveRegionalEdit = async () => {
+    if (!editingRegional || !editingRegional.name.trim() || !editingRegional.headquarters_id) return;
+    const { error } = await db.from("regionals").update({
+      name: editingRegional.name.trim(),
+      headquarters_id: editingRegional.headquarters_id,
+    }).eq("id", editingRegional.id);
+    if (error) return handleError(error, "Falha ao atualizar");
+    setEditingRegional(null);
+    ok("Regional atualizada");
+    load();
+  };
+
+  const saveClassEdit = async () => {
+    if (!editingClass || !editingClass.name.trim()) return;
+    const { error } = await db.from("classes").update({
+      name: editingClass.name.trim(),
+      congregation_id: editingClass.congregation_id || null,
+    }).eq("id", editingClass.id);
+    if (error) return handleError(error, "Falha ao atualizar");
+    setEditingClass(null);
+    ok("Classe atualizada");
+    load();
+  };
 
   const saveCongregationEdit = async () => {
     if (!editingCongregation) return;
@@ -98,10 +153,13 @@ export const HierarchyTab = () => {
 
   // ----- CREATE -----
   const addMinistry = async () => {
-    if (!newMinistry.trim()) return;
-    const { error } = await db.from("ministries").insert({ name: newMinistry.trim() });
+    if (!newMinistry.name.trim()) return;
+    const { error } = await db.from("ministries").insert({
+      name: newMinistry.name.trim(),
+      city: newMinistry.city.trim() || null,
+    });
     if (error) return handleError(error, "Falha ao criar ministerio");
-    setNewMinistry("");
+    setNewMinistry({ name: "", city: "" });
     ok("Ministerio criado");
     load();
   };
@@ -223,33 +281,53 @@ export const HierarchyTab = () => {
           <CardDescription>Topo da hierarquia organizacional</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nome do ministerio"
-              value={newMinistry}
-              onChange={(e) => setNewMinistry(e.target.value)}
-            />
-            <Button onClick={addMinistry}>Adicionar</Button>
+          <div className="grid gap-2 md:grid-cols-3">
+            <div>
+              <Label>Nome</Label>
+              <Input
+                placeholder="Nome do ministerio"
+                value={newMinistry.name}
+                onChange={(e) => setNewMinistry({ ...newMinistry, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input
+                placeholder="Cidade"
+                value={newMinistry.city}
+                onChange={(e) => setNewMinistry({ ...newMinistry, city: e.target.value })}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={addMinistry} className="w-full">Adicionar</Button>
+            </div>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Cidade</TableHead>
                 <TableHead className="w-20">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ministries.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell>{renderNameCell("ministries", m)}</TableCell>
+                  <TableCell>{m.name}</TableCell>
+                  <TableCell>{m.city ?? "-"}</TableCell>
                   <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeRow("ministries", m.id, m.name)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => setEditingMinistry(m)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeRow("ministries", m.id, m.name)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -314,17 +392,22 @@ export const HierarchyTab = () => {
             <TableBody>
               {headquarters.map((h) => (
                 <TableRow key={h.id}>
-                  <TableCell>{renderNameCell("headquarters", h)}</TableCell>
+                  <TableCell>{h.name}</TableCell>
                   <TableCell>{h.city ?? "-"}</TableCell>
                   <TableCell>{ministryName(h.ministry_id)}</TableCell>
                   <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeRow("headquarters", h.id, h.name)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => setEditingHq(h)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeRow("headquarters", h.id, h.name)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -381,16 +464,21 @@ export const HierarchyTab = () => {
             <TableBody>
               {regionals.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell>{renderNameCell("regionals", r)}</TableCell>
+                  <TableCell>{r.name}</TableCell>
                   <TableCell>{hqName(r.headquarters_id)}</TableCell>
                   <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeRow("regionals", r.id, r.name)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => setEditingRegional(r)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeRow("regionals", r.id, r.name)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -532,7 +620,14 @@ export const HierarchyTab = () => {
             <TableBody>
               {classes.map((cl) => (
                 <TableRow key={cl.id}>
-                  <TableCell>{cl.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span>{cl.name}</span>
+                      <Button size="icon" variant="ghost" onClick={() => setEditingClass(cl)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>{congregationName(cl.congregation_id)}</TableCell>
                   <TableCell>
                     <Select
