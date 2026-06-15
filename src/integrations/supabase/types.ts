@@ -264,7 +264,9 @@ export type Database = {
           bibles: number | null
           cash_difference: number | null
           class_id: number | null
+          class_notes: string | null
           created_at: string
+          ebd_notes: string | null
           hymn: string | null
           id: string
           magazines: number | null
@@ -282,7 +284,9 @@ export type Database = {
           bibles?: number | null
           cash_difference?: number | null
           class_id?: number | null
+          class_notes?: string | null
           created_at?: string
+          ebd_notes?: string | null
           hymn?: string | null
           id?: string
           magazines?: number | null
@@ -300,7 +304,9 @@ export type Database = {
           bibles?: number | null
           cash_difference?: number | null
           class_id?: number | null
+          class_notes?: string | null
           created_at?: string
+          ebd_notes?: string | null
           hymn?: string | null
           id?: string
           magazines?: number | null
@@ -327,27 +333,36 @@ export type Database = {
       students: {
         Row: {
           active: boolean | null
+          address: string | null
+          birth_date: string | null
           cargo: string | null
           class_id: number | null
           created_at: string
           id: number
           name: string
+          phone: string | null
         }
         Insert: {
           active?: boolean | null
+          address?: string | null
+          birth_date?: string | null
           cargo?: string | null
           class_id?: number | null
           created_at?: string
           id?: number
           name: string
+          phone?: string | null
         }
         Update: {
           active?: boolean | null
+          address?: string | null
+          birth_date?: string | null
           cargo?: string | null
           class_id?: number | null
           created_at?: string
           id?: number
           name?: string
+          phone?: string | null
         }
         Relationships: [
           {
@@ -358,6 +373,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          value: Json | null
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          value?: Json | null
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: Json | null
+        }
+        Relationships: []
       }
       teacher_classes: {
         Row: {
