@@ -73,18 +73,24 @@ BEGIN
   ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, city = EXCLUDED.city;
 
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (v_master_id, 'master')
-  ON CONFLICT DO NOTHING;
+  SELECT v_master_id, 'master'::public.app_role
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE user_id = v_master_id AND role::text = 'master'
+  );
 
   INSERT INTO public.user_roles (user_id, role, ministry_id)
-  VALUES (v_ministry_user_id, 'igreja_mae', v_ministry_id)
-  ON CONFLICT DO NOTHING;
+  SELECT v_ministry_user_id, 'igreja_mae'::public.app_role, v_ministry_id
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE user_id = v_ministry_user_id AND role::text = 'igreja_mae'
+  );
 
   INSERT INTO public.pending_users (user_id, email, display_name, status, decided_at)
-  VALUES
-    (v_master_id, v_master_email, 'Master Developer', 'approved', now()),
-    (v_ministry_user_id, v_ministry_email, 'AD Madureira', 'approved', now())
-  ON CONFLICT DO NOTHING;
+  SELECT v_master_id, v_master_email, 'Master Developer', 'approved', now()
+  WHERE NOT EXISTS (SELECT 1 FROM public.pending_users WHERE user_id = v_master_id);
+
+  INSERT INTO public.pending_users (user_id, email, display_name, status, decided_at)
+  SELECT v_ministry_user_id, v_ministry_email, 'AD Madureira', 'approved', now()
+  WHERE NOT EXISTS (SELECT 1 FROM public.pending_users WHERE user_id = v_ministry_user_id);
 
   UPDATE public.pending_users
      SET status = 'approved', decided_at = COALESCE(decided_at, now())
