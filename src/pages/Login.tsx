@@ -15,12 +15,30 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const routeByRole = async (userId: string) => {
+    const { data: roles } = await supabase
+      .from("user_roles" as any)
+      .select("role")
+      .eq("user_id", userId);
+
+    const roleList = ((roles as unknown) as Array<{ role: string }>) || [];
+    const has = (r: string) => roleList.some((x) => x.role === r);
+
+    if (has("master")) navigate("/admin?scope=master");
+    else if (has("igreja_mae")) navigate("/admin?scope=ministry");
+    else if (has("igreja_sede")) navigate("/admin?scope=headquarters");
+    else if (has("admin_regional")) navigate("/admin?scope=regional");
+    else if (has("secretario_ebd")) navigate("/admin?scope=congregation");
+    else if (has("professor_classe")) navigate("/professor");
+    else navigate("/admin");
+  };
+
   useEffect(() => {
     // Verifica se já existe uma sessão ativa ao carregar a página
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/admin");
+        routeByRole(session.user.id);
       }
     };
     checkSession();
@@ -66,36 +84,12 @@ const Login = () => {
         throw new Error("Sua solicitação de acesso foi recusada.");
       }
 
-      // Identifica o papel do usuario para rotear corretamente
-      const { data: roles } = await supabase
-        .from("user_roles" as any)
-        .select("role")
-        .eq("user_id", data.session.user.id);
-
-      const roleList = ((roles as unknown) as Array<{ role: string }>) || [];
-      const has = (r: string) => roleList.some((x) => x.role === r);
-
       toast({
         title: "Login bem-sucedido!",
         description: "A redirecionar...",
       });
 
-      if (has("master")) {
-        navigate("/admin?scope=master");
-      } else if (has("igreja_mae")) {
-        navigate("/admin?scope=ministry");
-      } else if (has("igreja_sede")) {
-        navigate("/admin?scope=headquarters");
-      } else if (has("admin_regional")) {
-        navigate("/admin?scope=regional");
-      } else if (has("secretario_ebd")) {
-        navigate("/admin?scope=congregation");
-      } else if (has("professor_classe")) {
-        navigate("/professor");
-      } else {
-        // Compatibilidade: usuarios antigos sem role caem no /admin
-        navigate("/admin");
-      }
+      await routeByRole(data.session.user.id);
 
     } catch (error: any) {
       toast({
