@@ -10,36 +10,261 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
       classes: {
         Row: {
+          congregation_id: string | null
           created_at: string
           id: number
           name: string
         }
         Insert: {
+          congregation_id?: string | null
           created_at?: string
           id?: number
           name: string
         }
         Update: {
+          congregation_id?: string | null
           created_at?: string
           id?: number
           name?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "classes_congregation_id_fkey"
+            columns: ["congregation_id"]
+            isOneToOne: false
+            referencedRelation: "congregations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      congregations: {
+        Row: {
+          created_at: string
+          headquarters_id: string
+          id: string
+          is_headquarters: boolean
+          name: string
+          regional_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          headquarters_id: string
+          id?: string
+          is_headquarters?: boolean
+          name: string
+          regional_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          headquarters_id?: string
+          id?: string
+          is_headquarters?: boolean
+          name?: string
+          regional_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congregations_headquarters_id_fkey"
+            columns: ["headquarters_id"]
+            isOneToOne: false
+            referencedRelation: "headquarters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "congregations_regional_id_fkey"
+            columns: ["regional_id"]
+            isOneToOne: false
+            referencedRelation: "regionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      headquarters: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          ministry_id: string
+          name: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          ministry_id: string
+          name: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          ministry_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "headquarters_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ministries: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
         Relationships: []
+      }
+      pending_users: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          display_name: string | null
+          email: string
+          id: string
+          requested_congregation_id: string | null
+          requested_headquarters_id: string | null
+          requested_ministry_id: string | null
+          requested_regional_id: string | null
+          requested_role: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          display_name?: string | null
+          email: string
+          id?: string
+          requested_congregation_id?: string | null
+          requested_headquarters_id?: string | null
+          requested_ministry_id?: string | null
+          requested_regional_id?: string | null
+          requested_role?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          display_name?: string | null
+          email?: string
+          id?: string
+          requested_congregation_id?: string | null
+          requested_headquarters_id?: string | null
+          requested_ministry_id?: string | null
+          requested_regional_id?: string | null
+          requested_role?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_users_requested_congregation_id_fkey"
+            columns: ["requested_congregation_id"]
+            isOneToOne: false
+            referencedRelation: "congregations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_users_requested_headquarters_id_fkey"
+            columns: ["requested_headquarters_id"]
+            isOneToOne: false
+            referencedRelation: "headquarters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_users_requested_ministry_id_fkey"
+            columns: ["requested_ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_users_requested_regional_id_fkey"
+            columns: ["requested_regional_id"]
+            isOneToOne: false
+            referencedRelation: "regionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      "public.ministries": {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
+      regionals: {
+        Row: {
+          created_at: string
+          headquarters_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          headquarters_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          headquarters_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regionals_headquarters_id_fkey"
+            columns: ["headquarters_id"]
+            isOneToOne: false
+            referencedRelation: "headquarters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registrations: {
         Row: {
           bibles: number | null
           cash_difference: number | null
           class_id: number | null
-          class_notes: string | null
           created_at: string
-          ebd_notes: string | null
           hymn: string | null
           id: string
           magazines: number | null
@@ -57,9 +282,7 @@ export type Database = {
           bibles?: number | null
           cash_difference?: number | null
           class_id?: number | null
-          class_notes?: string | null
           created_at?: string
-          ebd_notes?: string | null
           hymn?: string | null
           id?: string
           magazines?: number | null
@@ -77,9 +300,7 @@ export type Database = {
           bibles?: number | null
           cash_difference?: number | null
           class_id?: number | null
-          class_notes?: string | null
           created_at?: string
-          ebd_notes?: string | null
           hymn?: string | null
           id?: string
           magazines?: number | null
@@ -106,33 +327,27 @@ export type Database = {
       students: {
         Row: {
           active: boolean | null
-          address: string | null
-          birth_date: string | null
+          cargo: string | null
           class_id: number | null
           created_at: string
           id: number
           name: string
-          phone: string | null
         }
         Insert: {
           active?: boolean | null
-          address?: string | null
-          birth_date?: string | null
+          cargo?: string | null
           class_id?: number | null
           created_at?: string
           id?: number
           name: string
-          phone?: string | null
         }
         Update: {
           active?: boolean | null
-          address?: string | null
-          birth_date?: string | null
+          cargo?: string | null
           class_id?: number | null
           created_at?: string
           id?: number
           name?: string
-          phone?: string | null
         }
         Relationships: [
           {
@@ -144,36 +359,143 @@ export type Database = {
           },
         ]
       }
-      system_settings: {
+      teacher_classes: {
         Row: {
-          description: string | null
-          key: string
-          updated_at: string | null
-          value: Json | null
+          class_id: number
+          created_at: string
+          id: string
+          user_id: string
         }
         Insert: {
-          description?: string | null
-          key: string
-          updated_at?: string | null
-          value?: Json | null
+          class_id: number
+          created_at?: string
+          id?: string
+          user_id: string
         }
         Update: {
-          description?: string | null
-          key?: string
-          updated_at?: string | null
-          value?: Json | null
+          class_id?: number
+          created_at?: string
+          id?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teacher_classes_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          congregation_id: string | null
+          created_at: string
+          headquarters_id: string | null
+          id: string
+          ministry_id: string | null
+          regional_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          congregation_id?: string | null
+          created_at?: string
+          headquarters_id?: string | null
+          id?: string
+          ministry_id?: string | null
+          regional_id?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          congregation_id?: string | null
+          created_at?: string
+          headquarters_id?: string | null
+          id?: string
+          ministry_id?: string | null
+          regional_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_congregation_id_fkey"
+            columns: ["congregation_id"]
+            isOneToOne: false
+            referencedRelation: "congregations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_headquarters_id_fkey"
+            columns: ["headquarters_id"]
+            isOneToOne: false
+            referencedRelation: "headquarters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_regional_id_fkey"
+            columns: ["regional_id"]
+            isOneToOne: false
+            referencedRelation: "regionals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      approve_user: {
+        Args: {
+          _congregation_id?: string
+          _headquarters_id?: string
+          _ministry_id?: string
+          _pending_id: string
+          _regional_id?: string
+          _role: string
+        }
+        Returns: undefined
+      }
+      get_user_congregation: { Args: { _user_id: string }; Returns: string }
+      get_user_headquarters: { Args: { _user_id: string }; Returns: string }
+      get_user_ministry: { Args: { _user_id: string }; Returns: string }
+      get_user_regional: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_master: { Args: { _user_id: string }; Returns: boolean }
+      reject_user: { Args: { _pending_id: string }; Returns: undefined }
+      teacher_has_class: {
+        Args: { _class_id: number; _user_id: string }
+        Returns: boolean
+      }
+      user_can_see_congregation: {
+        Args: { _congregation_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "secretario_ebd"
+        | "professor_classe"
+        | "igreja_mae"
+        | "igreja_sede"
+        | "admin_regional"
+        | "master"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -300,6 +622,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "secretario_ebd",
+        "professor_classe",
+        "igreja_mae",
+        "igreja_sede",
+        "admin_regional",
+        "master",
+      ],
+    },
   },
 } as const
