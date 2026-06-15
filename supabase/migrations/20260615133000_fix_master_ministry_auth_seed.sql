@@ -15,13 +15,13 @@ BEGIN
     v_master_id := 'bbbbbbbb-0000-0000-0000-000000000001';
     INSERT INTO auth.users (
       instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, confirmed_at, created_at, updated_at,
+      email_confirmed_at, created_at, updated_at,
       raw_app_meta_data, raw_user_meta_data,
       confirmation_token, email_change, email_change_token_new, recovery_token
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', v_master_id, 'authenticated', 'authenticated',
       v_master_email, crypt('Master@2026', gen_salt('bf')),
-      now(), now(), now(), now(),
+      now(), now(), now(),
       '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
       '', '', '', ''
     );
@@ -29,7 +29,6 @@ BEGIN
     UPDATE auth.users
        SET encrypted_password = crypt('Master@2026', gen_salt('bf')),
            email_confirmed_at = COALESCE(email_confirmed_at, now()),
-           confirmed_at = COALESCE(confirmed_at, now()),
            updated_at = now(),
            raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb
      WHERE id = v_master_id;
@@ -45,13 +44,13 @@ BEGIN
     v_ministry_user_id := 'bbbbbbbb-0000-0000-0000-000000000002';
     INSERT INTO auth.users (
       instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, confirmed_at, created_at, updated_at,
+      email_confirmed_at, created_at, updated_at,
       raw_app_meta_data, raw_user_meta_data,
       confirmation_token, email_change, email_change_token_new, recovery_token
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', v_ministry_user_id, 'authenticated', 'authenticated',
       v_ministry_email, crypt('Admadureira@2026', gen_salt('bf')),
-      now(), now(), now(), now(),
+      now(), now(), now(),
       '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
       '', '', '', ''
     );
@@ -59,7 +58,6 @@ BEGIN
     UPDATE auth.users
        SET encrypted_password = crypt('Admadureira@2026', gen_salt('bf')),
            email_confirmed_at = COALESCE(email_confirmed_at, now()),
-           confirmed_at = COALESCE(confirmed_at, now()),
            updated_at = now(),
            raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb
      WHERE id = v_ministry_user_id;
