@@ -532,8 +532,8 @@ export const HierarchyTab = () => {
       {/* Congregacoes */}
       <Card>
         <CardHeader>
-          <CardTitle>Congregacoes</CardTitle>
-          <CardDescription>Cada congregacao pertence a uma sede e opcionalmente a uma regional</CardDescription>
+          <CardTitle>Congregações</CardTitle>
+          <CardDescription>Cada congregação pertence a uma sede e opcionalmente a uma regional</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 md:grid-cols-5">
