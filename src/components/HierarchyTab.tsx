@@ -44,6 +44,38 @@ export const HierarchyTab = () => {
     is_headquarters: false,
   });
 
+  // Credenciais opcionais para criar usuário junto com a entidade
+  const [newMinistryAuth, setNewMinistryAuth] = useState({ email: "", password: "" });
+  const [newHqAuth, setNewHqAuth] = useState({ email: "", password: "" });
+  const [newRegionalAuth, setNewRegionalAuth] = useState({ email: "", password: "" });
+  const [newCongAuth, setNewCongAuth] = useState({ email: "", password: "" });
+
+  const createEntityUser = async (payload: {
+    email: string;
+    password: string;
+    display_name?: string;
+    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd";
+    ministry_id?: string | null;
+    headquarters_id?: string | null;
+    regional_id?: string | null;
+    congregation_id?: string | null;
+  }) => {
+    const { data, error } = await supabase.functions.invoke("create-entity-user", {
+      body: payload,
+    });
+    if (error) {
+      // tenta extrair mensagem do corpo da função
+      const msg = (data as any)?.error || error.message;
+      handleError({ message: msg }, "Falha ao criar usuário");
+      return false;
+    }
+    if ((data as any)?.error) {
+      handleError({ message: (data as any).error }, "Falha ao criar usuário");
+      return false;
+    }
+    return true;
+  };
+
   // searches
   const [searchMinistry, setSearchMinistry] = useState("");
   const [searchHq, setSearchHq] = useState("");
@@ -161,51 +193,131 @@ export const HierarchyTab = () => {
   // ----- CREATE -----
   const addMinistry = async () => {
     if (!newMinistry.name.trim()) return;
-    const { error } = await db.from("ministries").insert({
-      name: newMinistry.name.trim(),
-      city: newMinistry.city.trim() || null,
-    });
+    const wantsUser = !!(newMinistryAuth.email.trim() && newMinistryAuth.password);
+    const { data: inserted, error } = await db
+      .from("ministries")
+      .insert({
+        name: newMinistry.name.trim(),
+        city: newMinistry.city.trim() || null,
+      })
+      .select()
+      .single();
     if (error) return handleError(error, "Falha ao criar ministerio");
+    if (wantsUser) {
+      const ok2 = await createEntityUser({
+        email: newMinistryAuth.email.trim(),
+        password: newMinistryAuth.password,
+        display_name: newMinistry.name.trim(),
+        role: "igreja_mae",
+        ministry_id: inserted.id,
+      });
+      if (!ok2) {
+        await load();
+        return;
+      }
+    }
     setNewMinistry({ name: "", city: "" });
+    setNewMinistryAuth({ email: "", password: "" });
     ok("Ministerio criado");
     load();
   };
 
   const addHq = async () => {
     if (!newHq.name.trim() || !newHq.ministry_id) return;
-    const { error } = await db.from("headquarters").insert({
-      name: newHq.name.trim(),
-      city: newHq.city.trim() || null,
-      ministry_id: newHq.ministry_id,
-    });
+    const wantsUser = !!(newHqAuth.email.trim() && newHqAuth.password);
+    const { data: inserted, error } = await db
+      .from("headquarters")
+      .insert({
+        name: newHq.name.trim(),
+        city: newHq.city.trim() || null,
+        ministry_id: newHq.ministry_id,
+      })
+      .select()
+      .single();
     if (error) return handleError(error, "Falha ao criar sede");
+    if (wantsUser) {
+      const ok2 = await createEntityUser({
+        email: newHqAuth.email.trim(),
+        password: newHqAuth.password,
+        display_name: newHq.name.trim(),
+        role: "igreja_sede",
+        ministry_id: newHq.ministry_id,
+        headquarters_id: inserted.id,
+      });
+      if (!ok2) {
+        await load();
+        return;
+      }
+    }
     setNewHq({ name: "", city: "", ministry_id: "" });
+    setNewHqAuth({ email: "", password: "" });
     ok("Igreja Sede criada");
     load();
   };
 
   const addRegional = async () => {
     if (!newRegional.name.trim() || !newRegional.headquarters_id) return;
-    const { error } = await db.from("regionals").insert({
-      name: newRegional.name.trim(),
-      headquarters_id: newRegional.headquarters_id,
-    });
+    const wantsUser = !!(newRegionalAuth.email.trim() && newRegionalAuth.password);
+    const { data: inserted, error } = await db
+      .from("regionals")
+      .insert({
+        name: newRegional.name.trim(),
+        headquarters_id: newRegional.headquarters_id,
+      })
+      .select()
+      .single();
     if (error) return handleError(error, "Falha ao criar regional");
+    if (wantsUser) {
+      const ok2 = await createEntityUser({
+        email: newRegionalAuth.email.trim(),
+        password: newRegionalAuth.password,
+        display_name: newRegional.name.trim(),
+        role: "admin_regional",
+        headquarters_id: newRegional.headquarters_id,
+        regional_id: inserted.id,
+      });
+      if (!ok2) {
+        await load();
+        return;
+      }
+    }
     setNewRegional({ name: "", headquarters_id: "" });
+    setNewRegionalAuth({ email: "", password: "" });
     ok("Regional criada");
     load();
   };
 
   const addCongregation = async () => {
     if (!newCong.name.trim() || !newCong.headquarters_id) return;
-    const { error } = await db.from("congregations").insert({
-      name: newCong.name.trim(),
-      headquarters_id: newCong.headquarters_id,
-      regional_id: newCong.regional_id || null,
-      is_headquarters: newCong.is_headquarters,
-    });
+    const wantsUser = !!(newCongAuth.email.trim() && newCongAuth.password);
+    const { data: inserted, error } = await db
+      .from("congregations")
+      .insert({
+        name: newCong.name.trim(),
+        headquarters_id: newCong.headquarters_id,
+        regional_id: newCong.regional_id || null,
+        is_headquarters: newCong.is_headquarters,
+      })
+      .select()
+      .single();
     if (error) return handleError(error, "Falha ao criar congregacao");
+    if (wantsUser) {
+      const ok2 = await createEntityUser({
+        email: newCongAuth.email.trim(),
+        password: newCongAuth.password,
+        display_name: newCong.name.trim(),
+        role: "secretario_ebd",
+        headquarters_id: newCong.headquarters_id,
+        regional_id: newCong.regional_id || null,
+        congregation_id: inserted.id,
+      });
+      if (!ok2) {
+        await load();
+        return;
+      }
+    }
     setNewCong({ name: "", headquarters_id: "", regional_id: "", is_headquarters: false });
+    setNewCongAuth({ email: "", password: "" });
     ok("Congregacao criada");
     load();
   };
