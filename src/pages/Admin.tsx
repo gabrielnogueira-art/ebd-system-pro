@@ -38,6 +38,12 @@ const Admin = () => {
     checkAccess();
   }, [navigate]);
 
+  useEffect(() => {
+    if (!userRole.loading && userRole.role === "professor_classe") {
+      navigate("/professor");
+    }
+  }, [userRole.loading, userRole.role, navigate]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");

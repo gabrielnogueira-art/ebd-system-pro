@@ -6,9 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRole } from "@/hooks/useUserRole";
 import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
-import { ProfessorStudentsTab } from "@/components/ProfessorStudentsTab";
 import { ProfessorAttendanceTab } from "@/components/ProfessorAttendanceTab";
-import { ProfessorDashboardTab } from "@/components/ProfessorDashboardTab";
 
 const Professor = () => {
   const navigate = useNavigate();
@@ -78,25 +76,9 @@ const Professor = () => {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="alunos" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="alunos">Alunos</TabsTrigger>
-              <TabsTrigger value="chamada">Chamada</TabsTrigger>
-              <TabsTrigger value="dashboard">Painel</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="alunos">
-              <ProfessorStudentsTab classId={classId} />
-            </TabsContent>
-            
-            <TabsContent value="chamada">
-              <ProfessorAttendanceTab classId={classId} />
-            </TabsContent>
-            
-            <TabsContent value="dashboard">
-              <ProfessorDashboardTab classId={classId} />
-            </TabsContent>
-          </Tabs>
+          <div className="pt-4">
+            <ProfessorAttendanceTab classId={classId} />
+          </div>
         )}
       </div>
       <SupabaseStatusBadge />
