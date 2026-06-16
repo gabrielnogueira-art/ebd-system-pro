@@ -581,6 +581,29 @@ export const HierarchyTab = () => {
               <Button onClick={addHq} className="w-full">Adicionar</Button>
             </div>
           </div>
+          <div className="grid gap-2 md:grid-cols-2 pt-2">
+            <div>
+              <Label>E-mail de acesso (opcional)</Label>
+              <Input
+                type="email"
+                placeholder="login@exemplo.com"
+                value={newHqAuth.email}
+                onChange={(e) => setNewHqAuth({ ...newHqAuth, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Senha inicial (mín. 6)</Label>
+              <Input
+                type="text"
+                placeholder="Senha temporária"
+                value={newHqAuth.password}
+                onChange={(e) => setNewHqAuth({ ...newHqAuth, password: e.target.value })}
+              />
+            </div>
+            <p className="md:col-span-2 text-xs text-muted-foreground">
+              Se preenchido, cria um login com perfil "Igreja Sede" vinculado a esta sede.
+            </p>
+          </div>
           <div className="pt-4">
             <Input
               placeholder="Pesquisar sede..."
