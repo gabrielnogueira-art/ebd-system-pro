@@ -1,68 +1,57 @@
-## Contexto
+# Painel do Professor com Sidebar
 
-Hoje temos: enum `app_role` com `igreja_mae`, `igreja_sede`, `admin_regional`, `secretario_ebd`, `professor_classe`; `user_roles` com escopos; RLS bottom-up funcional; 5 logins de teste seedados. Esta entrega adiciona o nível Master, o fluxo de aprovação de cadastros e o seed completo do Ministério Madureira (1 ministério → 3 sedes → 12 regionais → 120 congregações), além da navegação "minha igreja local ↔ congregações" na Sede e do drill-down por congregação.
+Hoje a página `/professor` é uma tela única com seletor de classe + formulário de chamada. Vamos transformá-la em um painel completo, com barra lateral colapsável, semelhante em estrutura ao painel do ADM, mas com escopo restrito à(s) classe(s) do professor.
 
-## O que será feito
+## Estrutura visual
 
-### 1. Migration `20260615120000_master_and_approval.sql`
-- Adiciona `'master'` ao enum `app_role`.
-- Estende `user_can_see_congregation`: master vê tudo.
-- Nova função `is_master(uuid) → boolean`.
-- Cria coluna `city` em `ministries` (Madureira mora no RJ).
-- Cria tabela `pending_users` para fila de aprovação:
-  - `id`, `user_id` (FK auth.users), `email`, `display_name`, `requested_role`, `requested_scope_*` (ministry/headquarters/regional/congregation), `status` (`pending`|`approved`|`rejected`), `decided_by`, `decided_at`, `created_at`.
-  - GRANTs corretos + RLS: master enxerga/aprova tudo; usuário enxerga só o próprio pedido.
-- Trigger `on_auth_user_created` em `auth.users` que insere automaticamente em `pending_users` com `status='pending'` para qualquer signup novo (exceto seeds que vamos marcar como `approved`).
-- Função `approve_user(pending_id, role, ministry/hq/regional/cong)` `SECURITY DEFINER` que cria o `user_roles` final e marca como aprovado.
+```text
+┌───────────────────────────────────────────────┐
+│ ☰  Painel do Professor       [Classe ▼] Sair │
+├──────────┬────────────────────────────────────┤
+│ Sidebar  │                                    │
+│  • Chamada│   Conteúdo da seção ativa          │
+│  • Alunos │                                    │
+│  • Painel │                                    │
+└──────────┴────────────────────────────────────┘
+```
 
-### 2. Migration `20260615120100_seed_madureira.sql` (separada por causa do enum)
-- Cria usuário Master `master@ebd.dev` / `Master@2026` com role `master` (auto-aprovado).
-- Cria/atualiza ministério **"Assembleia de Deus Ministério Madureira"** (cidade: Rio de Janeiro).
-- Cria login `admadureira@gmail.com` / `Admadureira@2026` com role `igreja_mae` apontando para esse ministério.
-- Cria 3 headquarters: **AD Campos dos Goytacazes**, **AD Macaé**, **AD São Francisco de Itabapoana** vinculadas ao ministério Madureira.
-- Cria 12 regionais ("Regional 01" a "Regional 12") sob AD Campos.
-- Cria 120 congregações ("Congregação 1" a "Congregação 120"), 10 por regional.
-- Reassocia o login existente `admin_igreja_mae@teste.com` para ser admin da Sede **AD Campos dos Goytacazes** (UPDATE em `user_roles.headquarters_id`).
-- Cria 1 classe "Geral" em cada uma das 120 congregações (para o drill-down já ter algo, ainda que vazio).
+- Sidebar usa o componente `shadcn/ui sidebar` com `collapsible="icon"` (recolhe para ícones, expande no clique do botão ☰ no header).
+- Seletor de classe permanece no header (enquanto não existe vínculo único professor→classe). Ao trocar a classe, todas as seções recarregam com o novo `classId`.
 
-### 3. Frontend
+## Seções do painel
 
-**Login (`Login.tsx` + `App.tsx`):**
-- Master roteia para `/admin?scope=master`.
-- Bloqueia login se `pending_users.status='pending'` mostrando mensagem "Aguardando aprovação".
+1. **Chamada (Registro)** — reusa o atual `ProfessorAttendanceTab` (formulário de presença/ofertas já existente). Nenhuma mudança funcional.
 
-**Cadastro público:**
-- Adiciona link "Criar conta" na tela de login → `/signup` (novo). O signup pede nome + e-mail + senha + role solicitado + escopo. Após criar, mostra "Sua conta está aguardando aprovação".
+2. **Alunos da Classe** — CRUD restrito aos alunos da classe selecionada:
+   - Listar alunos (`students` filtrado por `class_id`).
+   - Adicionar, editar e desativar/reativar aluno.
+   - Campos: nome, telefone, data de nascimento, cargo, endereço.
+   - Reutilizar visualmente o padrão do `StudentsManagement` (usado pelo ADM), mas em uma versão simplificada que sempre recebe `classId` por prop — sem seletor de classe e sem mudar a classe do aluno.
 
-**Painel Master (`MasterApprovalsTab.tsx`):**
-- Nova aba "Aprovações" visível só para role `master`.
-- Lista `pending_users` com botões Aprovar/Rejeitar + selects de role e escopo.
-- Master também tem todas as abas existentes (visão global).
+3. **Painel da Classe (Dashboard)** — visão macro restrita à classe:
+   - Cards de KPIs: matriculados ativos, média de presença, média de bíblias, média de revistas, ofertas acumuladas (dinheiro + PIX).
+   - Aniversariantes do mês.
+   - Atenção pastoral: alunos com 2+ faltas consecutivas nos últimos registros.
+   - Histórico recente: tabela com últimos registros da classe (data, presentes, bíblias, revistas, oferta total).
+   - Frequência por aluno: tabela com total e % de presença de cada aluno no período disponível.
+   - Tudo derivado de `registrations` + `students` filtrando por `class_id`.
 
-**Painel Ministério (`AdminDashboard` quando `scope=ministry`):**
-- Já filtra via `useDashboardScope`. Adiciona um cartão de topo "Igrejas Sede" listando as Sedes daquele Ministério com botão "Editar" (abre modal já existente em `HierarchyTab`).
+## Segurança / dados
 
-**Painel Sede com toggle (`SedeViewToggle.tsx`):**
-- No topo do Admin quando `role='igreja_sede'`, dois botões grandes:
-  - **"EBD da minha igreja"** → filtra dashboard pela congregação `is_headquarters=true` da Sede.
-  - **"Visão das Congregações"** → mostra lista de congregações dessa Sede, com Regional como agrupador; clicar em uma congregação trava o filtro do dashboard nela (drill-down) e mostra um botão "Voltar".
-- Estado salvo em query param (`?view=local|congregations|cong:<id>`).
-
-**Edição de Congregação/Sede:**
-- `HierarchyTab` já tem CRUD. Vou habilitar inline edit (nome, regional) também na lista de congregações da Sede.
-
-### 4. Memória de projeto
-Salvo regra em `mem://features/hierarquia/aprovacao-master` resumindo o fluxo de aprovação para próximas sessões.
+Não muda nada no banco. As RLS atuais já restringem `students`, `registrations` e `classes` ao escopo do professor (via `teacher_classes`). Apenas garantimos que todas as queries das novas seções filtram por `class_id` selecionado.
 
 ## Detalhes técnicos
-- 2 migrations separadas (enum → uso).
-- Trigger usa `SECURITY DEFINER` para inserir em `pending_users`.
-- Seed de 120 congregações via `generate_series` em loop com `DO $$`.
-- RLS de `pending_users`: master full, dono lê o seu.
-- Não mexe no `EBDRegistrationForm` nem nos relatórios.
 
-## Fora do escopo
-- E-mail de notificação ao usuário quando for aprovado (pode vir depois via edge function).
-- Permitir que `igreja_mae` também aprove usuários (hoje só master).
+- Novos arquivos:
+  - `src/pages/Professor.tsx` — reescrita para usar `SidebarProvider` + layout shell + roteamento interno por estado (`section: "chamada" | "alunos" | "painel"`).
+  - `src/components/ProfessorSidebar.tsx` — sidebar com itens Chamada / Alunos / Painel da Classe (`NavLink`-like via estado).
+  - `src/components/ProfessorStudentsTab.tsx` — gerenciamento de alunos da classe (recebe `classId`).
+  - `src/components/ProfessorDashboardTab.tsx` — dashboard da classe (recebe `classId`).
+- Mantém `ProfessorAttendanceTab` como está.
+- Header fixo com `SidebarTrigger`, título, seletor de classe (quando houver mais de uma) e botão Sair.
+- Responsivo: em mobile o sidebar vira offcanvas; o seletor de classe colapsa abaixo do título.
 
-Confirmo para implementar tudo?
+## Itens fora do escopo desta etapa
+
+- Vincular automaticamente o professor a uma única classe e remover o seletor (será feito depois, conforme você indicou).
+- Exportação de relatórios em PDF na visão do professor (pode ser adicionado depois reusando o `ReportsTab` filtrado).
