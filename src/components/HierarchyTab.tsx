@@ -685,6 +685,29 @@ export const HierarchyTab = () => {
               <Button onClick={addRegional} className="w-full">Adicionar</Button>
             </div>
           </div>
+          <div className="grid gap-2 md:grid-cols-2 pt-2">
+            <div>
+              <Label>E-mail de acesso (opcional)</Label>
+              <Input
+                type="email"
+                placeholder="login@exemplo.com"
+                value={newRegionalAuth.email}
+                onChange={(e) => setNewRegionalAuth({ ...newRegionalAuth, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Senha inicial (mín. 6)</Label>
+              <Input
+                type="text"
+                placeholder="Senha temporária"
+                value={newRegionalAuth.password}
+                onChange={(e) => setNewRegionalAuth({ ...newRegionalAuth, password: e.target.value })}
+              />
+            </div>
+            <p className="md:col-span-2 text-xs text-muted-foreground">
+              Se preenchido, cria um login com perfil "Admin Regional" vinculado a esta regional.
+            </p>
+          </div>
           <div className="pt-4">
             <Input
               placeholder="Pesquisar regional..."
