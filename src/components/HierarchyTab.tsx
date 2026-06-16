@@ -817,6 +817,29 @@ export const HierarchyTab = () => {
               <Button onClick={addCongregation} className="w-full">Adicionar</Button>
             </div>
           </div>
+          <div className="grid gap-2 md:grid-cols-2 pt-2">
+            <div>
+              <Label>E-mail de acesso (opcional)</Label>
+              <Input
+                type="email"
+                placeholder="login@exemplo.com"
+                value={newCongAuth.email}
+                onChange={(e) => setNewCongAuth({ ...newCongAuth, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Senha inicial (mín. 6)</Label>
+              <Input
+                type="text"
+                placeholder="Senha temporária"
+                value={newCongAuth.password}
+                onChange={(e) => setNewCongAuth({ ...newCongAuth, password: e.target.value })}
+              />
+            </div>
+            <p className="md:col-span-2 text-xs text-muted-foreground">
+              Se preenchido, cria um login com perfil "Secretário EBD" vinculado a esta congregação.
+            </p>
+          </div>
           <div className="pt-4">
             <Input
               placeholder="Pesquisar congregação..."
