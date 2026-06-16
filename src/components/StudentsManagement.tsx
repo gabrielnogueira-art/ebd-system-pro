@@ -108,11 +108,11 @@ export const StudentsManagement = () => {
   };
 
   const addStudent = async () => {
-    if (!newStudentName.trim() || !newStudentClassId || !newStudentCargo) {
+    if (!newStudentName.trim() || !newStudentClassId) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Preencha pelo menos o nome, a classe e o cargo.",
+        description: "Preencha pelo menos o nome e a classe.",
       });
       return;
     }
@@ -167,11 +167,11 @@ export const StudentsManagement = () => {
   };
 
   const saveStudentEdit = async () => {
-    if (!editingStudent || !editStudentName.trim() || !editStudentClassId || !editStudentCargo) {
+    if (!editingStudent || !editStudentName.trim() || !editStudentClassId) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Preencha pelo menos o nome, a classe e o cargo.",
+        description: "Preencha pelo menos o nome e a classe.",
       });
       return;
     }
@@ -366,7 +366,7 @@ export const StudentsManagement = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="student-cargo">Cargo *</Label>
+              <Label htmlFor="student-cargo">Cargo</Label>
               <Select value={newStudentCargo} onValueChange={setNewStudentCargo}>
                 <SelectTrigger id="student-cargo">
                   <SelectValue placeholder="Selecione o cargo" />
@@ -602,7 +602,7 @@ export const StudentsManagement = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-student-cargo">Cargo *</Label>
+              <Label htmlFor="edit-student-cargo">Cargo</Label>
               <Select value={editStudentCargo} onValueChange={setEditStudentCargo}>
                 <SelectTrigger id="edit-student-cargo">
                   <SelectValue placeholder="Selecione o cargo" />
