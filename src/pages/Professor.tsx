@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserRole } from "@/hooks/useUserRole";
 import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
 import { ProfessorAttendanceTab } from "@/components/ProfessorAttendanceTab";
+import { ProfessorStudentsTab } from "@/components/ProfessorStudentsTab";
+import { ProfessorDashboardTab } from "@/components/ProfessorDashboardTab";
+import { ProfessorSidebar, ProfessorSection } from "@/components/ProfessorSidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const Professor = () => {
   const navigate = useNavigate();
@@ -14,6 +18,7 @@ const Professor = () => {
   const [checking, setChecking] = useState(true);
   const [classId, setClassId] = useState<number | null>(null);
   const [availableClasses, setAvailableClasses] = useState<{ id: number; name: string }[]>([]);
+  const [section, setSection] = useState<ProfessorSection>("chamada");
 
   useEffect(() => {
     const check = async () => {
@@ -22,19 +27,14 @@ const Professor = () => {
         navigate("/login");
         return;
       }
-      
-      // Busca todas as classes disponíveis para este professor (o RLS filtra automaticamente)
       const { data: classesData, error } = await supabase
         .from("classes")
         .select("id, name")
         .order("name");
-        
       if (!error && classesData && classesData.length > 0) {
         setAvailableClasses(classesData);
-        // Seleciona a primeira classe da lista por padrão
         setClassId(classesData[0].id);
       }
-      
       setChecking(false);
     };
     check();
@@ -59,21 +59,41 @@ const Professor = () => {
     );
   }
 
+  const sectionTitle =
+    section === "chamada" ? "Chamada" :
+    section === "alunos" ? "Alunos da Classe" : "Painel da Classe";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
-      <div className="max-w-md mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary">Minhas Classes</h1>
-          <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
-        </div>
-        
-        {availableClasses.length > 0 ? (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Selecione a Classe</CardTitle>
-              <CardDescription>Escolha de qual classe você irá registrar a chamada hoje</CardDescription>
-            </CardHeader>
-            <CardContent>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <ProfessorSidebar section={section} onChange={setSection} />
+
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 flex items-center gap-2 border-b px-3 sticky top-0 bg-background/80 backdrop-blur z-10">
+            <SidebarTrigger />
+            <h1 className="text-lg font-semibold text-primary truncate flex-1">
+              Painel do Professor — {sectionTitle}
+            </h1>
+            {availableClasses.length > 0 && (
+              <Select
+                value={classId?.toString() || ""}
+                onValueChange={(val) => setClassId(parseInt(val))}
+              >
+                <SelectTrigger className="w-[180px] hidden sm:flex">
+                  <SelectValue placeholder="Classe..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableClasses.map(c => (
+                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
+          </header>
+
+          {availableClasses.length > 0 && (
+            <div className="sm:hidden px-3 pt-3">
               <Select
                 value={classId?.toString() || ""}
                 onValueChange={(val) => setClassId(parseInt(val))}
@@ -83,33 +103,43 @@ const Professor = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {availableClasses.map(c => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.name}
-                    </SelectItem>
+                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </CardContent>
-          </Card>
-        ) : null}
-        
-        {!classId ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Nenhuma classe vinculada</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Você ainda não possui acesso a nenhuma classe. Procure o Secretário da EBD.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="pt-4">
-            <ProfessorAttendanceTab classId={classId} />
-          </div>
-        )}
+            </div>
+          )}
+
+          <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
+            {!classId ? (
+              <Card className="max-w-md mx-auto">
+                <CardHeader>
+                  <CardTitle>Nenhuma classe vinculada</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Você ainda não possui acesso a nenhuma classe. Procure o Secretário da EBD.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : section === "chamada" ? (
+              <div className="max-w-md mx-auto">
+                <ProfessorAttendanceTab classId={classId} />
+              </div>
+            ) : section === "alunos" ? (
+              <div className="max-w-5xl mx-auto">
+                <ProfessorStudentsTab classId={classId} />
+              </div>
+            ) : (
+              <div className="max-w-6xl mx-auto">
+                <ProfessorDashboardTab classId={classId} />
+              </div>
+            )}
+          </main>
+        </div>
       </div>
       <SupabaseStatusBadge />
-    </div>
+    </SidebarProvider>
   );
 };
 
