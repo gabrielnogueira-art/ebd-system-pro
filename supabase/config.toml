@@ -1,1 +1,4 @@
 project_id = "tqgsirutntejwkowplnc"
+
+[functions.create-entity-user]
+verify_jwt = true
