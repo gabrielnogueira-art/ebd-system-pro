@@ -44,6 +44,13 @@ export const HierarchyTab = () => {
     is_headquarters: false,
   });
 
+  // searches
+  const [searchMinistry, setSearchMinistry] = useState("");
+  const [searchHq, setSearchHq] = useState("");
+  const [searchRegional, setSearchRegional] = useState("");
+  const [searchCongregation, setSearchCongregation] = useState("");
+  const [searchClass, setSearchClass] = useState("");
+
   // edit name (inline)
   const [editing, setEditing] = useState<{ table: string; id: string; value: string } | null>(null);
 
@@ -304,15 +311,24 @@ export const HierarchyTab = () => {
     });
   };
 
-  const sortedMinistries = getSorted(ministries, 'ministries');
-  const sortedHq = getSorted(headquarters, 'headquarters', { ministry: (h) => ministryName(h.ministry_id) });
-  const sortedRegionals = getSorted(regionals, 'regionals', { hq: (r) => hqName(r.headquarters_id) });
-  const sortedCongregations = getSorted(congregations, 'congregations', {
+  const filteredMinistries = ministries.filter(m => m.name.toLowerCase().includes(searchMinistry.toLowerCase()) || (m.city && m.city.toLowerCase().includes(searchMinistry.toLowerCase())));
+  const sortedMinistries = getSorted(filteredMinistries, 'ministries');
+  
+  const filteredHq = headquarters.filter(h => h.name.toLowerCase().includes(searchHq.toLowerCase()) || ministryName(h.ministry_id).toLowerCase().includes(searchHq.toLowerCase()));
+  const sortedHq = getSorted(filteredHq, 'headquarters', { ministry: (h) => ministryName(h.ministry_id) });
+  
+  const filteredRegionals = regionals.filter(r => r.name.toLowerCase().includes(searchRegional.toLowerCase()) || hqName(r.headquarters_id).toLowerCase().includes(searchRegional.toLowerCase()));
+  const sortedRegionals = getSorted(filteredRegionals, 'regionals', { hq: (r) => hqName(r.headquarters_id) });
+  
+  const filteredCongregations = congregations.filter(c => c.name.toLowerCase().includes(searchCongregation.toLowerCase()) || hqName(c.headquarters_id).toLowerCase().includes(searchCongregation.toLowerCase()) || regionalName(c.regional_id).toLowerCase().includes(searchCongregation.toLowerCase()));
+  const sortedCongregations = getSorted(filteredCongregations, 'congregations', {
     hq: (c) => hqName(c.headquarters_id),
     regional: (c) => regionalName(c.regional_id),
     tipo: (c) => c.is_headquarters ? 1 : 0
   });
-  const sortedClasses = getSorted(classes, 'classes', { cong: (cl) => congregationName(cl.congregation_id) });
+  
+  const filteredClasses = classes.filter(cl => cl.name.toLowerCase().includes(searchClass.toLowerCase()) || congregationName(cl.congregation_id).toLowerCase().includes(searchClass.toLowerCase()));
+  const sortedClasses = getSorted(filteredClasses, 'classes', { cong: (cl) => congregationName(cl.congregation_id) });
 
   return (
     <div className="space-y-6">
@@ -343,6 +359,14 @@ export const HierarchyTab = () => {
             <div className="flex items-end">
               <Button onClick={addMinistry} className="w-full">Adicionar</Button>
             </div>
+          </div>
+          <div className="pt-4">
+            <Input
+              placeholder="Pesquisar mistério..."
+              value={searchMinistry}
+              onChange={(e) => setSearchMinistry(e.target.value)}
+              className="max-w-sm"
+            />
           </div>
           <Table>
             <TableHeader>
@@ -422,6 +446,14 @@ export const HierarchyTab = () => {
               <Button onClick={addHq} className="w-full">Adicionar</Button>
             </div>
           </div>
+          <div className="pt-4">
+            <Input
+              placeholder="Pesquisar sede..."
+              value={searchHq}
+              onChange={(e) => setSearchHq(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -494,6 +526,14 @@ export const HierarchyTab = () => {
             <div className="flex items-end">
               <Button onClick={addRegional} className="w-full">Adicionar</Button>
             </div>
+          </div>
+          <div className="pt-4">
+            <Input
+              placeholder="Pesquisar regional..."
+              value={searchRegional}
+              onChange={(e) => setSearchRegional(e.target.value)}
+              className="max-w-sm"
+            />
           </div>
           <Table>
             <TableHeader>
@@ -596,6 +636,14 @@ export const HierarchyTab = () => {
               <Button onClick={addCongregation} className="w-full">Adicionar</Button>
             </div>
           </div>
+          <div className="pt-4">
+            <Input
+              placeholder="Pesquisar congregação..."
+              value={searchCongregation}
+              onChange={(e) => setSearchCongregation(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -650,7 +698,15 @@ export const HierarchyTab = () => {
           <CardTitle>Vinculo de Classes</CardTitle>
           <CardDescription>Defina a qual congregacao cada classe pertence</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div>
+            <Input
+              placeholder="Pesquisar classe..."
+              value={searchClass}
+              onChange={(e) => setSearchClass(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
