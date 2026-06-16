@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type Ministry = { id: string; name: string; city: string | null };
@@ -272,6 +272,48 @@ export const HierarchyTab = () => {
   const congregationName = (id: string | null) =>
     id ? congregations.find((c) => c.id === id)?.name ?? "-" : "-";
 
+  const [sortConfig, setSortConfig] = useState<{table: string, key: string, direction: 'asc'|'desc'} | null>(null);
+
+  const handleSort = (table: string, key: string) => {
+    setSortConfig(prev => {
+      if (prev?.table === table && prev?.key === key) {
+        return { table, key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { table, key, direction: 'asc' };
+    });
+  };
+
+  const SortIcon = ({ table, column }: { table: string, column: string }) => {
+    if (sortConfig?.table !== table || sortConfig?.key !== column) return <ArrowUpDown className="ml-2 h-4 w-4 inline cursor-pointer text-muted-foreground" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp className="ml-2 h-4 w-4 inline cursor-pointer" /> : <ArrowDown className="ml-2 h-4 w-4 inline cursor-pointer" />;
+  };
+
+  const getSorted = <T extends any>(data: T[], table: string, extractors: Record<string, (item: T) => any> = {}) => {
+    if (sortConfig?.table !== table) return data;
+    return [...data].sort((a, b) => {
+      const { key, direction } = sortConfig;
+      const ex = extractors[key] || ((item) => item[key]);
+      const aVal = ex(a) ?? "";
+      const bVal = ex(b) ?? "";
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const sortedMinistries = getSorted(ministries, 'ministries');
+  const sortedHq = getSorted(headquarters, 'headquarters', { ministry: (h) => ministryName(h.ministry_id) });
+  const sortedRegionals = getSorted(regionals, 'regionals', { hq: (r) => hqName(r.headquarters_id) });
+  const sortedCongregations = getSorted(congregations, 'congregations', {
+    hq: (c) => hqName(c.headquarters_id),
+    regional: (c) => regionalName(c.regional_id),
+    tipo: (c) => c.is_headquarters ? 1 : 0
+  });
+  const sortedClasses = getSorted(classes, 'classes', { cong: (cl) => congregationName(cl.congregation_id) });
+
   return (
     <div className="space-y-6">
       {/* Ministerios */}
@@ -305,13 +347,13 @@ export const HierarchyTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Cidade</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'name')}>Nome <SortIcon table="ministries" column="name" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'city')}>Cidade <SortIcon table="ministries" column="city" /></TableHead>
                 <TableHead className="w-20">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ministries.map((m) => (
+              {sortedMinistries.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>{m.name}</TableCell>
                   <TableCell>{m.city ?? "-"}</TableCell>
@@ -383,14 +425,14 @@ export const HierarchyTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Cidade</TableHead>
-                <TableHead>Ministerio</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('headquarters', 'name')}>Nome <SortIcon table="headquarters" column="name" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('headquarters', 'city')}>Cidade <SortIcon table="headquarters" column="city" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('headquarters', 'ministry')}>Ministerio <SortIcon table="headquarters" column="ministry" /></TableHead>
                 <TableHead className="w-20">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {headquarters.map((h) => (
+              {sortedHq.map((h) => (
                 <TableRow key={h.id}>
                   <TableCell>{h.name}</TableCell>
                   <TableCell>{h.city ?? "-"}</TableCell>
@@ -456,13 +498,13 @@ export const HierarchyTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Igreja Sede</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'name')}>Nome <SortIcon table="regionals" column="name" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'hq')}>Igreja Sede <SortIcon table="regionals" column="hq" /></TableHead>
                 <TableHead className="w-20">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {regionals.map((r) => (
+              {sortedRegionals.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.name}</TableCell>
                   <TableCell>{hqName(r.headquarters_id)}</TableCell>
@@ -557,15 +599,15 @@ export const HierarchyTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Sede</TableHead>
-                <TableHead>Regional</TableHead>
-                <TableHead>Tipo</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'name')}>Nome <SortIcon table="congregations" column="name" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'hq')}>Sede <SortIcon table="congregations" column="hq" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'regional')}>Regional <SortIcon table="congregations" column="regional" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'tipo')}>Tipo <SortIcon table="congregations" column="tipo" /></TableHead>
                 <TableHead className="w-20">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {congregations.map((c) => (
+              {sortedCongregations.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>{c.name}</TableCell>
                   <TableCell>{hqName(c.headquarters_id)}</TableCell>
@@ -612,13 +654,13 @@ export const HierarchyTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Classe</TableHead>
-                <TableHead>Congregacao atual</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('classes', 'name')}>Classe <SortIcon table="classes" column="name" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('classes', 'cong')}>Congregacao atual <SortIcon table="classes" column="cong" /></TableHead>
                 <TableHead>Alterar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {classes.map((cl) => (
+              {sortedClasses.map((cl) => (
                 <TableRow key={cl.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
