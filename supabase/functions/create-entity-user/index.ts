@@ -22,6 +22,7 @@ interface Body {
   headquarters_id?: string | null;
   regional_id?: string | null;
   congregation_id?: string | null;
+  class_ids?: number[];
 }
 
 Deno.serve(async (req) => {
@@ -62,6 +63,10 @@ Deno.serve(async (req) => {
       callerRoles.some((r) => r.role === "igreja_mae" && r.ministry_id === mid);
     const hasHq = (hid: string) =>
       callerRoles.some((r) => r.role === "igreja_sede" && r.headquarters_id === hid);
+    const hasRegional = (rid: string) =>
+      callerRoles.some((r) => r.role === "admin_regional" && r.regional_id === rid);
+    const hasCong = (cid: string) =>
+      callerRoles.some((r) => r.role === "secretario_ebd" && r.congregation_id === cid);
 
     const targetMinistry = body.ministry_id ?? null;
     const targetHq = body.headquarters_id ?? null;
@@ -85,7 +90,41 @@ Deno.serve(async (req) => {
           allowed = (hq && hasMinistry((hq as any).ministry_id)) || hasHq(targetHq);
         }
       } else if (role === "professor_classe") {
-        allowed = false;
+        // Permitido se o caller tem escopo sobre TODAS as classes informadas
+        const classIds = Array.isArray(body.class_ids) ? body.class_ids : [];
+        if (classIds.length === 0) {
+          return json({ error: "Informe ao menos uma classe para o professor" }, 400);
+        }
+        const { data: classRows } = await admin
+          .from("classes")
+          .select("id, congregation_id")
+          .in("id", classIds);
+        if (!classRows || classRows.length !== classIds.length) {
+          return json({ error: "Classe(s) inválida(s)" }, 400);
+        }
+        // Para cada classe, buscar hierarquia da congregação
+        let allOk = true;
+        for (const c of classRows as any[]) {
+          if (!c.congregation_id) { allOk = false; break; }
+          const { data: cong } = await admin
+            .from("congregations")
+            .select("id, regional_id, headquarters_id")
+            .eq("id", c.congregation_id)
+            .maybeSingle();
+          if (!cong) { allOk = false; break; }
+          const { data: hq } = await admin
+            .from("headquarters")
+            .select("ministry_id")
+            .eq("id", (cong as any).headquarters_id)
+            .maybeSingle();
+          const ok =
+            hasCong((cong as any).id) ||
+            (((cong as any).regional_id) && hasRegional((cong as any).regional_id)) ||
+            hasHq((cong as any).headquarters_id) ||
+            (hq && hasMinistry((hq as any).ministry_id));
+          if (!ok) { allOk = false; break; }
+        }
+        allowed = allOk;
       }
     }
     if (!allowed) return json({ error: "Sem permissão para criar este nível de acesso" }, 403);
@@ -120,6 +159,17 @@ Deno.serve(async (req) => {
       // rollback do auth user para não deixar órfão
       await admin.auth.admin.deleteUser(newUserId);
       return json({ error: `Falha ao atribuir papel: ${roleErr.message}` }, 400);
+    }
+
+    // Vincula classes do professor (se houver)
+    if (role === "professor_classe" && Array.isArray(body.class_ids) && body.class_ids.length > 0) {
+      const rows = body.class_ids.map((cid) => ({ user_id: newUserId, class_id: cid }));
+      const { error: tcErr } = await admin.from("teacher_classes").insert(rows);
+      if (tcErr) {
+        await admin.from("user_roles").delete().eq("user_id", newUserId);
+        await admin.auth.admin.deleteUser(newUserId);
+        return json({ error: `Falha ao vincular classes: ${tcErr.message}` }, 400);
+      }
     }
 
     return json({ ok: true, user_id: newUserId }, 200);
