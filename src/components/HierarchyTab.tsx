@@ -50,15 +50,25 @@ export const HierarchyTab = () => {
   const [newRegionalAuth, setNewRegionalAuth] = useState({ email: "", password: "" });
   const [newCongAuth, setNewCongAuth] = useState({ email: "", password: "" });
 
+  // Form criar professor
+  const [newTeacher, setNewTeacher] = useState({
+    email: "",
+    password: "",
+    display_name: "",
+    class_ids: [] as number[],
+  });
+  const [creatingTeacher, setCreatingTeacher] = useState(false);
+
   const createEntityUser = async (payload: {
     email: string;
     password: string;
     display_name?: string;
-    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd";
+    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
     ministry_id?: string | null;
     headquarters_id?: string | null;
     regional_id?: string | null;
     congregation_id?: string | null;
+    class_ids?: number[];
   }) => {
     const { data, error } = await supabase.functions.invoke("create-entity-user", {
       body: payload,
