@@ -50,15 +50,25 @@ export const HierarchyTab = () => {
   const [newRegionalAuth, setNewRegionalAuth] = useState({ email: "", password: "" });
   const [newCongAuth, setNewCongAuth] = useState({ email: "", password: "" });
 
+  // Form criar professor
+  const [newTeacher, setNewTeacher] = useState({
+    email: "",
+    password: "",
+    display_name: "",
+    class_ids: [] as number[],
+  });
+  const [creatingTeacher, setCreatingTeacher] = useState(false);
+
   const createEntityUser = async (payload: {
     email: string;
     password: string;
     display_name?: string;
-    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd";
+    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
     ministry_id?: string | null;
     headquarters_id?: string | null;
     regional_id?: string | null;
     congregation_id?: string | null;
+    class_ids?: number[];
   }) => {
     const { data, error } = await supabase.functions.invoke("create-entity-user", {
       body: payload,
@@ -954,6 +964,109 @@ export const HierarchyTab = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Professores */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Professores</CardTitle>
+          <CardDescription>
+            Crie logins de professor e vincule a uma ou mais classes. O professor verá apenas os
+            alunos das classes selecionadas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <Label>Nome do professor</Label>
+              <Input
+                placeholder="Ex.: João da Silva"
+                value={newTeacher.display_name}
+                onChange={(e) => setNewTeacher({ ...newTeacher, display_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>E-mail de acesso</Label>
+              <Input
+                type="email"
+                placeholder="professor@exemplo.com"
+                value={newTeacher.email}
+                onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Senha inicial (mín. 6)</Label>
+              <Input
+                type="text"
+                placeholder="Senha temporária"
+                value={newTeacher.password}
+                onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Classes vinculadas</Label>
+            <div className="grid gap-2 md:grid-cols-3 max-h-64 overflow-y-auto border rounded-md p-3">
+              {classes.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhuma classe cadastrada.</p>
+              )}
+              {classes.map((cl) => {
+                const checked = newTeacher.class_ids.includes(cl.id);
+                return (
+                  <label key={cl.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setNewTeacher((prev) => ({
+                          ...prev,
+                          class_ids: e.target.checked
+                            ? [...prev.class_ids, cl.id]
+                            : prev.class_ids.filter((id) => id !== cl.id),
+                        }));
+                      }}
+                    />
+                    <span>
+                      {cl.name}
+                      <span className="text-muted-foreground">
+                        {" "}
+                        ({congregationName(cl.congregation_id)})
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              disabled={
+                creatingTeacher ||
+                !newTeacher.email.trim() ||
+                newTeacher.password.length < 6 ||
+                newTeacher.class_ids.length === 0
+              }
+              onClick={async () => {
+                setCreatingTeacher(true);
+                const ok2 = await createEntityUser({
+                  email: newTeacher.email.trim(),
+                  password: newTeacher.password,
+                  display_name: newTeacher.display_name.trim() || newTeacher.email.trim(),
+                  role: "professor_classe",
+                  class_ids: newTeacher.class_ids,
+                });
+                setCreatingTeacher(false);
+                if (ok2) {
+                  setNewTeacher({ email: "", password: "", display_name: "", class_ids: [] });
+                  ok("Professor criado e vinculado às classes");
+                }
+              }}
+            >
+              {creatingTeacher ? "Criando..." : "Criar professor"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Dialog open={!!editingCongregation} onOpenChange={(open) => !open && setEditingCongregation(null)}>
         <DialogContent>
           <DialogHeader>
