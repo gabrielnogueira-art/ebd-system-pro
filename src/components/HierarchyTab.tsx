@@ -965,6 +965,8 @@ export const HierarchyTab = () => {
         </CardContent>
       </Card>
       <Dialog open={!!editingCongregation} onOpenChange={(open) => !open && setEditingCongregation(null)}>
+
+      {/* Marker: insert Professores below — replaced via separate hunk */}
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Congregação</DialogTitle>
