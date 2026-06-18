@@ -26,7 +26,6 @@ const Admin = () => {
   const userRole = useUserRole();
   const isMaster = userRole.role === "master";
   const isSede = userRole.role === "igreja_sede";
-  const isSecretario = userRole.role === "secretario_ebd";
   const canSeeStructure =
     userRole.role === "master" ||
     userRole.role === "igreja_mae" ||
