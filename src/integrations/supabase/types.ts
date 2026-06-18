@@ -519,6 +519,18 @@ export type Database = {
         Args: { _class_id: number; _user_id: string }
         Returns: boolean
       }
+      user_can_manage_congregation_structure: {
+        Args: { _congregation_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_manage_headquarters: {
+        Args: { _headquarters_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_manage_regional: {
+        Args: { _regional_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_can_see_congregation: {
         Args: { _congregation_id: string; _user_id: string }
         Returns: boolean
