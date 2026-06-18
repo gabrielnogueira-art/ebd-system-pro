@@ -534,6 +534,59 @@ export const HierarchyTab = () => {
 
   return (
     <div className="space-y-6">
+      {/* Igreja Independente (modo modular) */}
+      <Card className="border-primary/30">
+        <CardHeader>
+          <CardTitle>Igreja Independente</CardTitle>
+          <CardDescription>
+            Para igrejas menores sem estrutura hierárquica completa. Cria automaticamente
+            Ministério + Sede + Congregação como uma única entidade, com login de acesso
+            básico (Secretário EBD).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 md:grid-cols-2">
+            <div>
+              <Label>Nome da igreja</Label>
+              <Input
+                placeholder="Nome"
+                value={newIndep.name}
+                onChange={(e) => setNewIndep({ ...newIndep, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input
+                placeholder="Cidade"
+                value={newIndep.city}
+                onChange={(e) => setNewIndep({ ...newIndep, city: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>E-mail de acesso</Label>
+              <Input
+                type="email"
+                placeholder="login@exemplo.com"
+                value={newIndep.email}
+                onChange={(e) => setNewIndep({ ...newIndep, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Senha inicial (mín. 6)</Label>
+              <Input
+                type="text"
+                placeholder="Senha temporária"
+                value={newIndep.password}
+                onChange={(e) => setNewIndep({ ...newIndep, password: e.target.value })}
+              />
+            </div>
+          </div>
+          <Button onClick={addIndependentChurch} disabled={creatingIndep}>
+            {creatingIndep ? "Criando..." : "Cadastrar Igreja Independente"}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Ministerios */}
       <Card>
         <CardHeader>
