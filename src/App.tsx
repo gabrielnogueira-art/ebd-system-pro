@@ -13,26 +13,33 @@ function RootGate() {
   const [state, setState] = useState<"loading" | "anon" | { to: string }>("loading");
   useEffect(() => {
     let active = true;
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const resolve = async (session: any) => {
       if (!active) return;
       if (!session) { setState("anon"); return; }
-      const { data: roles } = await supabase
-        .from("user_roles" as any)
-        .select("role")
-        .eq("user_id", session.user.id);
-      const list = ((roles as unknown) as Array<{ role: string }>) || [];
-      const has = (r: string) => list.some((x) => x.role === r);
-      let to = "/admin";
-      if (has("master")) to = "/admin?scope=master";
-      else if (has("igreja_mae")) to = "/admin?scope=ministry";
-      else if (has("igreja_sede")) to = "/admin?scope=headquarters";
-      else if (has("admin_regional")) to = "/admin?scope=regional";
-      else if (has("secretario_ebd")) to = "/admin?scope=congregation";
-      else if (has("professor_classe")) to = "/professor";
-      if (active) setState({ to });
-    })();
-    return () => { active = false; };
+      try {
+        const { data: roles } = await supabase
+          .from("user_roles" as any)
+          .select("role")
+          .eq("user_id", session.user.id);
+        const list = ((roles as unknown) as Array<{ role: string }>) || [];
+        const has = (r: string) => list.some((x) => x.role === r);
+        let to = "/admin";
+        if (has("master")) to = "/admin?scope=master";
+        else if (has("igreja_mae")) to = "/admin?scope=ministry";
+        else if (has("igreja_sede")) to = "/admin?scope=headquarters";
+        else if (has("admin_regional")) to = "/admin?scope=regional";
+        else if (has("secretario_ebd")) to = "/admin?scope=congregation";
+        else if (has("professor_classe")) to = "/professor";
+        if (active) setState({ to });
+      } catch {
+        if (active) setState({ to: "/admin" });
+      }
+    };
+    supabase.auth.getSession().then(({ data }) => resolve(data.session)).catch(() => resolve(null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => resolve(session));
+    // Failsafe: evita loading infinito caso o proxy do preview trave
+    const t = setTimeout(() => { if (active) setState("anon"); }, 4000);
+    return () => { active = false; clearTimeout(t); sub.subscription.unsubscribe(); };
   }, []);
   if (state === "loading") {
     return (
