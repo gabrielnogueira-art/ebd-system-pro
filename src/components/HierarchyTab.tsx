@@ -59,6 +59,86 @@ export const HierarchyTab = () => {
   });
   const [creatingTeacher, setCreatingTeacher] = useState(false);
 
+  // Form criar Igreja Independente (modo modular: cria Ministério + Sede + Congregação juntos)
+  const [newIndep, setNewIndep] = useState({
+    name: "",
+    city: "",
+    email: "",
+    password: "",
+  });
+  const [creatingIndep, setCreatingIndep] = useState(false);
+
+  const addIndependentChurch = async () => {
+    const name = newIndep.name.trim();
+    if (!name) return handleError({ message: "Informe o nome da igreja" }, "Dados incompletos");
+    if (!newIndep.email.trim() || !newIndep.password) {
+      return handleError({ message: "E-mail e senha são obrigatórios" }, "Dados incompletos");
+    }
+    if (newIndep.password.length < 6) {
+      return handleError({ message: "Senha mínima de 6 caracteres" }, "Dados incompletos");
+    }
+    setCreatingIndep(true);
+    try {
+      const city = newIndep.city.trim() || null;
+      // 1) Ministério
+      const { data: min, error: mErr } = await db
+        .from("ministries")
+        .insert({ name, city })
+        .select()
+        .single();
+      if (mErr) return handleError(mErr, "Falha ao criar ministério");
+      // 2) Sede
+      const { data: hq, error: hErr } = await db
+        .from("headquarters")
+        .insert({ name, city, ministry_id: min.id })
+        .select()
+        .single();
+      if (hErr) {
+        await db.from("ministries").delete().eq("id", min.id);
+        return handleError(hErr, "Falha ao criar sede");
+      }
+      // 3) Congregação (marcada como sede para indicar entidade única)
+      const { data: cong, error: cErr } = await db
+        .from("congregations")
+        .insert({
+          name,
+          headquarters_id: hq.id,
+          regional_id: null,
+          is_headquarters: true,
+        })
+        .select()
+        .single();
+      if (cErr) {
+        await db.from("headquarters").delete().eq("id", hq.id);
+        await db.from("ministries").delete().eq("id", min.id);
+        return handleError(cErr, "Falha ao criar congregação");
+      }
+      // 4) Login secretário vinculado à congregação
+      const ok2 = await createEntityUser({
+        email: newIndep.email.trim(),
+        password: newIndep.password,
+        display_name: name,
+        role: "secretario_ebd",
+        headquarters_id: hq.id,
+        regional_id: null,
+        congregation_id: cong.id,
+      });
+      if (!ok2) {
+        // rollback estrutural
+        await db.from("congregations").delete().eq("id", cong.id);
+        await db.from("headquarters").delete().eq("id", hq.id);
+        await db.from("ministries").delete().eq("id", min.id);
+        await load();
+        return;
+      }
+      setNewIndep({ name: "", city: "", email: "", password: "" });
+      ok("Igreja independente criada");
+      load();
+    } finally {
+      setCreatingIndep(false);
+    }
+  };
+
   const createEntityUser = async (payload: {
     email: string;
     password: string;
