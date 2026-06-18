@@ -26,16 +26,29 @@ const Admin = () => {
   const userRole = useUserRole();
   const isMaster = userRole.role === "master";
   const isSede = userRole.role === "igreja_sede";
+  const canSeeStructure =
+    userRole.role === "master" ||
+    userRole.role === "igreja_mae" ||
+    userRole.role === "igreja_sede" ||
+    userRole.role === "admin_regional";
 
   useEffect(() => {
-    const checkAccess = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/login");
-      }
+    let active = true;
+    // Evita loop de loading caso getSession() trave no proxy do preview:
+    // resolve quem chegar primeiro (session restaurada OU evento de auth OU timeout).
+    const finish = (session: any) => {
+      if (!active) return;
+      if (!session) navigate("/login");
       setIsLoading(false);
     };
-    checkAccess();
+    supabase.auth.getSession().then(({ data }) => finish(data.session)).catch(() => finish(null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => finish(session));
+    const t = setTimeout(() => finish(null), 4000);
+    return () => {
+      active = false;
+      clearTimeout(t);
+      sub.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -86,16 +99,31 @@ const Admin = () => {
           </div>
         </div>
 
+        {(() => {
+          const tabs: Array<{ value: string; label: string }> = [
+            { value: "dashboard", label: "Dashboard" },
+            { value: "registrations", label: "Registros" },
+            { value: "confronto", label: "Confronto" },
+            { value: "classes", label: "Classes" },
+            { value: "students", label: "Alunos" },
+            { value: "reports", label: "Relatórios" },
+          ];
+          if (canSeeStructure) tabs.push({ value: "hierarchy", label: "Estrutura" });
+          if (isMaster) tabs.push({ value: "approvals", label: "Aprovações" });
+          // Mapa estatico para garantir geracao das classes Tailwind
+          const colsMap: Record<number, string> = {
+            5: "grid-cols-5",
+            6: "grid-cols-6",
+            7: "grid-cols-7",
+            8: "grid-cols-8",
+          };
+          const cols = colsMap[tabs.length] ?? "grid-cols-6";
+          return (
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className={`grid w-full ${isMaster ? "grid-cols-8" : "grid-cols-7"}`}>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="registrations">Registros</TabsTrigger>
-            <TabsTrigger value="confronto">Confronto</TabsTrigger>
-            <TabsTrigger value="classes">Classes</TabsTrigger>
-            <TabsTrigger value="students">Alunos</TabsTrigger>
-            <TabsTrigger value="reports">Relatórios</TabsTrigger>
-            <TabsTrigger value="hierarchy">Estrutura</TabsTrigger>
-            {isMaster && <TabsTrigger value="approvals">Aprovações</TabsTrigger>}
+          <TabsList className={`grid w-full ${cols}`}>
+            {tabs.map((t) => (
+              <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -126,9 +154,11 @@ const Admin = () => {
             <ReportsTab key={`reports-${refreshKey}`} />
           </TabsContent>
 
-          <TabsContent value="hierarchy">
-            <HierarchyTab key={`hierarchy-${refreshKey}`} />
-          </TabsContent>
+          {canSeeStructure && (
+            <TabsContent value="hierarchy">
+              <HierarchyTab key={`hierarchy-${refreshKey}`} />
+            </TabsContent>
+          )}
 
           {isMaster && (
             <TabsContent value="approvals">
@@ -136,6 +166,8 @@ const Admin = () => {
             </TabsContent>
           )}
         </Tabs>
+          );
+        })()}
       </div>
       <SupabaseStatusBadge />
     </div>
