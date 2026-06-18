@@ -111,7 +111,14 @@ const Admin = () => {
           ];
           if (canSeeStructure) tabs.push({ value: "hierarchy", label: "Estrutura" });
           if (isMaster) tabs.push({ value: "approvals", label: "Aprovações" });
-          const cols = `grid-cols-${tabs.length}`;
+          // Mapa estatico para garantir geracao das classes Tailwind
+          const colsMap: Record<number, string> = {
+            5: "grid-cols-5",
+            6: "grid-cols-6",
+            7: "grid-cols-7",
+            8: "grid-cols-8",
+          };
+          const cols = colsMap[tabs.length] ?? "grid-cols-6";
           return (
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className={`grid w-full ${cols}`}>
@@ -148,9 +155,11 @@ const Admin = () => {
             <ReportsTab key={`reports-${refreshKey}`} />
           </TabsContent>
 
-          <TabsContent value="hierarchy">
-            <HierarchyTab key={`hierarchy-${refreshKey}`} />
-          </TabsContent>
+          {canSeeStructure && (
+            <TabsContent value="hierarchy">
+              <HierarchyTab key={`hierarchy-${refreshKey}`} />
+            </TabsContent>
+          )}
 
           {isMaster && (
             <TabsContent value="approvals">
