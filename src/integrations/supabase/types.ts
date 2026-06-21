@@ -119,22 +119,37 @@ export type Database = {
       }
       ministries: {
         Row: {
+          brand_primary_hsl: string | null
           city: string | null
           created_at: string
+          display_name: string | null
           id: string
+          logo_url: string | null
           name: string
+          president_pastor: string | null
+          state: string | null
         }
         Insert: {
+          brand_primary_hsl?: string | null
           city?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
+          logo_url?: string | null
           name: string
+          president_pastor?: string | null
+          state?: string | null
         }
         Update: {
+          brand_primary_hsl?: string | null
           city?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
+          logo_url?: string | null
           name?: string
+          president_pastor?: string | null
+          state?: string | null
         }
         Relationships: []
       }
