@@ -17,6 +17,8 @@ import { SupabaseStatusBadge } from "@/components/SupabaseStatusBadge";
 import { SedeViewSwitcher } from "@/components/SedeViewSwitcher";
 import { MasterApprovalsTab } from "@/components/MasterApprovalsTab";
 import { useUserRole } from "@/hooks/useUserRole";
+import { BrandingTab } from "@/components/BrandingTab";
+import { BrandingHeader } from "@/components/BrandingHeader";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ const Admin = () => {
   const userRole = useUserRole();
   const isMaster = userRole.role === "master";
   const isSede = userRole.role === "igreja_sede";
+  const canEditBranding = userRole.role === "master" || userRole.role === "igreja_mae";
   const canSeeStructure =
     userRole.role === "master" ||
     userRole.role === "igreja_mae" ||
@@ -84,6 +87,7 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10">
       <div className="container mx-auto p-6">
+        <BrandingHeader />
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-primary">Área Administrativa - EBD</h1>
@@ -109,6 +113,7 @@ const Admin = () => {
             { value: "reports", label: "Relatórios" },
           ];
           if (canSeeStructure) tabs.push({ value: "hierarchy", label: "Estrutura" });
+          if (canEditBranding) tabs.push({ value: "branding", label: "Identidade" });
           if (isMaster) tabs.push({ value: "approvals", label: "Aprovações" });
           // Mapa estatico para garantir geracao das classes Tailwind
           const colsMap: Record<number, string> = {
@@ -116,6 +121,7 @@ const Admin = () => {
             6: "grid-cols-6",
             7: "grid-cols-7",
             8: "grid-cols-8",
+            9: "grid-cols-9",
           };
           const cols = colsMap[tabs.length] ?? "grid-cols-6";
           return (
@@ -157,6 +163,12 @@ const Admin = () => {
           {canSeeStructure && (
             <TabsContent value="hierarchy">
               <HierarchyTab key={`hierarchy-${refreshKey}`} />
+            </TabsContent>
+          )}
+
+          {canEditBranding && (
+            <TabsContent value="branding">
+              <BrandingTab key={`branding-${refreshKey}`} />
             </TabsContent>
           )}
 
