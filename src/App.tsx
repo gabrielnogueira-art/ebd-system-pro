@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import ChoirView from "./pages/Choir"; // <-- 1. IMPORTAR A NOVA PÁGINA
 import Professor from "./pages/Professor";
 import Signup from "./pages/Signup";
+import { BrandingApplier } from "./components/BrandingApplier";
 
 function RootGate() {
   const [state, setState] = useState<"loading" | "anon" | { to: string }>("loading");
@@ -55,6 +56,7 @@ function RootGate() {
 function App() {
   return (
     <Router>
+      <BrandingApplier />
       <Routes>
         <Route path="/" element={<RootGate />} />
         <Route path="/form" element={<EBDRegistrationForm />} />
