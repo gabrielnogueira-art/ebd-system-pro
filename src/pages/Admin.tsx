@@ -37,19 +37,27 @@ const Admin = () => {
 
   useEffect(() => {
     let active = true;
-    // Evita loop de loading caso getSession() trave no proxy do preview:
-    // resolve quem chegar primeiro (session restaurada OU evento de auth OU timeout).
+    let hasSession = false;
     const finish = (session: any) => {
       if (!active) return;
-      if (!session) navigate("/login");
-      setIsLoading(false);
+      if (session) {
+        hasSession = true;
+        setIsLoading(false);
+      } else if (!hasSession) {
+        // só redireciona se nunca tivemos sessão válida
+        setIsLoading(false);
+        navigate("/login");
+      }
     };
-    supabase.auth.getSession().then(({ data }) => finish(data.session)).catch(() => finish(null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => finish(session));
-    const t = setTimeout(() => finish(null), 4000);
+    // Listener primeiro para capturar SIGNED_IN/TOKEN_REFRESHED
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) finish(session);
+    });
+    supabase.auth.getSession()
+      .then(({ data }) => finish(data.session))
+      .catch(() => finish(null));
     return () => {
       active = false;
-      clearTimeout(t);
       sub.subscription.unsubscribe();
     };
   }, [navigate]);
