@@ -245,6 +245,11 @@ export const EBDRegistrationForm = () => {
   };
   const uploadFiles = async (): Promise<string[]> => {
     const uploadedUrls: string[] = [];
+    const selectedClass = classes.find(c => c.id === parseInt(selectedClassId));
+    const congregationId = selectedClass?.congregation_id;
+    if (!congregationId) {
+      throw new Error("Classe sem congregação associada. Não é possível enviar comprovantes.");
+    }
     for (const file of pixFiles) {
       try {
         const timestamp = Date.now();
@@ -255,7 +260,7 @@ export const EBDRegistrationForm = () => {
           .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars with underscore
           .replace(/_{2,}/g, '_') // Replace multiple underscores with single
           .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
-        const fileName = `${timestamp}-${sanitizedName}`;
+        const fileName = `${congregationId}/${timestamp}-${sanitizedName}`;
         const { data, error } = await supabase.storage.from("pix-receipts").upload(fileName, file);
         if (error) throw error;
         uploadedUrls.push(data.path);
