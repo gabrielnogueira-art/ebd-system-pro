@@ -258,6 +258,19 @@ export const RegistrationsList = () => {
       
       // Upload new files
       let newUploadedUrls: string[] = [];
+      let congregationId: string | null = null;
+      if (editNewFiles.length > 0) {
+        const { data: cls, error: clsErr } = await supabase
+          .from("classes")
+          .select("congregation_id")
+          .eq("id", selectedRegistration.class_id)
+          .maybeSingle();
+        if (clsErr) throw clsErr;
+        congregationId = (cls as any)?.congregation_id ?? null;
+        if (!congregationId) {
+          throw new Error("Classe sem congregação associada. Não é possível enviar comprovantes.");
+        }
+      }
       for (const file of editNewFiles) {
         try {
           const timestamp = Date.now();
@@ -267,7 +280,7 @@ export const RegistrationsList = () => {
             .replace(/[^a-zA-Z0-9.-]/g, '_')
             .replace(/_{2,}/g, '_')
             .replace(/^_|_$/g, '');
-          const fileName = `${timestamp}-${sanitizedName}`;
+          const fileName = `${congregationId}/${timestamp}-${sanitizedName}`;
           const { data, error } = await supabase.storage
             .from("pix-receipts")
             .upload(fileName, file);
