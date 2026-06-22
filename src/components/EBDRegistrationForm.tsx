@@ -17,6 +17,7 @@ import { Lock, X, Eye, Trash2 } from "lucide-react";
 interface Class {
   id: number;
   name: string;
+  congregation_id?: string | null;
 }
 interface Student {
   id: number;
