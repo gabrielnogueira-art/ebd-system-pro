@@ -95,7 +95,10 @@ export function useUserRole(): UserRoleInfo {
       });
     };
     load();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      // Defer: nunca executar awaits do Supabase direto no callback de auth.
+      setTimeout(() => { if (active) load(); }, 0);
+    });
     return () => {
       active = false;
       sub.subscription.unsubscribe();
