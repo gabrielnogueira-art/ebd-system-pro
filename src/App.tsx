@@ -37,7 +37,10 @@ function RootGate() {
       }
     };
     supabase.auth.getSession().then(({ data }) => resolve(data.session)).catch(() => resolve(null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => resolve(session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      // Defer async work: chamadas Supabase dentro do callback podem travar o auth client.
+      setTimeout(() => resolve(session), 0);
+    });
     // Failsafe: evita loading infinito caso o proxy do preview trave
     const t = setTimeout(() => { if (active) setState("anon"); }, 4000);
     return () => { active = false; clearTimeout(t); sub.subscription.unsubscribe(); };
