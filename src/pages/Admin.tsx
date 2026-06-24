@@ -38,24 +38,27 @@ const Admin = () => {
   useEffect(() => {
     let active = true;
     let hasSession = false;
+    let resolved = false;
     const finish = (session: any) => {
       if (!active) return;
       if (session) {
         hasSession = true;
+        resolved = true;
         setIsLoading(false);
-      } else if (!hasSession) {
-        // só redireciona se nunca tivemos sessão válida
+      } else if (!hasSession && resolved) {
+        // só redireciona depois que getSession resolveu e confirmou que não há sessão
         setIsLoading(false);
         navigate("/login");
       }
     };
-    // Listener primeiro para capturar SIGNED_IN/TOKEN_REFRESHED
+    // Listener primeiro para capturar SIGNED_IN/TOKEN_REFRESHED.
+    // Defer async work para evitar deadlock do auth client.
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) finish(session);
+      if (session) setTimeout(() => finish(session), 0);
     });
     supabase.auth.getSession()
-      .then(({ data }) => finish(data.session))
-      .catch(() => finish(null));
+      .then(({ data }) => { resolved = true; finish(data.session); })
+      .catch(() => { resolved = true; finish(null); });
     return () => {
       active = false;
       sub.subscription.unsubscribe();
