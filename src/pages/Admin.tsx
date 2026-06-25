@@ -25,6 +25,7 @@ const Admin = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState("dashboard");
   const userRole = useUserRole();
   const isMaster = userRole.role === "master";
   const isSede = userRole.role === "igreja_sede";
@@ -136,58 +137,32 @@ const Admin = () => {
           };
           const cols = colsMap[tabs.length] ?? "grid-cols-6";
           return (
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className={`grid w-full ${cols}`}>
             {tabs.map((t) => (
               <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
             ))}
           </TabsList>
 
-          <TabsContent value="dashboard">
-            {isSede ? (
-              <SedeViewSwitcher key={`sede-${refreshKey}`} />
-            ) : (
-              <AdminDashboard key={`dashboard-${refreshKey}`} />
+          {/* Render apenas o tab ativo — montar todos simultaneamente
+              disparava queries/realtime em todos e causava input lag. */}
+          <TabsContent value={activeTab} forceMount>
+            {activeTab === "dashboard" && (
+              isSede ? (
+                <SedeViewSwitcher key={`sede-${refreshKey}`} />
+              ) : (
+                <AdminDashboard key={`dashboard-${refreshKey}`} />
+              )
             )}
+            {activeTab === "registrations" && <RegistrationsList key={`registrations-${refreshKey}`} />}
+            {activeTab === "confronto" && <ConfrontoTab key={`confronto-${refreshKey}`} />}
+            {activeTab === "classes" && <ClassesManagement key={`classes-${refreshKey}`} />}
+            {activeTab === "students" && <StudentsManagement key={`students-${refreshKey}`} />}
+            {activeTab === "reports" && <ReportsTab key={`reports-${refreshKey}`} />}
+            {activeTab === "hierarchy" && canSeeStructure && <HierarchyTab key={`hierarchy-${refreshKey}`} />}
+            {activeTab === "branding" && canEditBranding && <BrandingTab key={`branding-${refreshKey}`} />}
+            {activeTab === "approvals" && isMaster && <MasterApprovalsTab key={`approvals-${refreshKey}`} />}
           </TabsContent>
-
-          <TabsContent value="registrations">
-            <RegistrationsList key={`registrations-${refreshKey}`} />
-          </TabsContent>
-
-          <TabsContent value="confronto">
-            <ConfrontoTab key={`confronto-${refreshKey}`} />
-          </TabsContent>
-
-          <TabsContent value="classes">
-            <ClassesManagement key={`classes-${refreshKey}`} />
-          </TabsContent>
-
-          <TabsContent value="students">
-            <StudentsManagement key={`students-${refreshKey}`} />
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <ReportsTab key={`reports-${refreshKey}`} />
-          </TabsContent>
-
-          {canSeeStructure && (
-            <TabsContent value="hierarchy">
-              <HierarchyTab key={`hierarchy-${refreshKey}`} />
-            </TabsContent>
-          )}
-
-          {canEditBranding && (
-            <TabsContent value="branding">
-              <BrandingTab key={`branding-${refreshKey}`} />
-            </TabsContent>
-          )}
-
-          {isMaster && (
-            <TabsContent value="approvals">
-              <MasterApprovalsTab key={`approvals-${refreshKey}`} />
-            </TabsContent>
-          )}
         </Tabs>
           );
         })()}
