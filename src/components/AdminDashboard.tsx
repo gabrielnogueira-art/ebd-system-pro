@@ -517,7 +517,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         const numSundays = uniqueDates.size || 1;
 
         setStats({
-            totalRegistrations: totalRegistrations || 0,
+            totalRegistrations: regCount.count || 0,
             totalStudents: studentCount.count || 0,
             totalClasses: visibleClasses.length,
             todayRegistrations: todayCount.count || 0,
