@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -69,12 +69,25 @@ interface AdminDashboardProps {
 export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {}) => {
   const scope = useDashboardScope();
   const baseClassIds = scope.effectiveClassIds; // null = sem restricao
-  const classIds = congregationOverride
-    ? scope.classes
-        .filter((c) => c.congregation_id === congregationOverride)
-        .map((c) => c.id)
-    : baseClassIds;
-  const scopeKey = (congregationOverride ?? "") + "|" + scope.classIdsKey;
+  const classIds = useMemo(
+    () => congregationOverride
+      ? scope.classes
+          .filter((c) => c.congregation_id === congregationOverride)
+          .map((c) => c.id)
+      : baseClassIds,
+    [baseClassIds, congregationOverride, scope.classes],
+  );
+  const scopeKey = useMemo(
+    () => (congregationOverride ?? "") + "|" + (classIds === null ? "ALL" : classIds.slice().sort((a, b) => a - b).join(",")),
+    [classIds, congregationOverride],
+  );
+  const visibleClasses = useMemo(() => {
+    if (classIds === null) return scope.classes;
+    const allow = new Set(classIds);
+    return scope.classes.filter((c) => allow.has(c.id));
+  }, [classIds, scope.classes]);
+  const loadSeq = useRef(0);
+  const initialLoadDone = useRef(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalStudents: 0,
@@ -101,21 +114,31 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (scope.loading) return;
+    let active = true;
+    const seq = ++loadSeq.current;
+    initialLoadDone.current = false;
+
     const loadInitialData = async () => {
       setIsLoading(true);
       await Promise.all([
           fetchStats(),
           fetchQuarterlyData(),
           fetchSettings(), // Adicionado para buscar o estado do interruptor
-          fetchAbsentStudents()
       ]);
-      setIsLoading(false);
+      if (active && seq === loadSeq.current) {
+        initialLoadDone.current = true;
+        setIsLoading(false);
+        window.setTimeout(() => {
+          if (active && seq === loadSeq.current) fetchAbsentStudents();
+        }, 80);
+      }
     };
     loadInitialData();
     
-    // Setup Realtime subscription
+    // Setup Realtime subscription somente apos o escopo estar resolvido.
     const channel = supabase
-      .channel('registrations-changes')
+      .channel(`registrations-changes-${scopeKey || "global"}`)
       .on(
         'postgres_changes',
         {
@@ -126,22 +149,28 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         () => {
           fetchStats();
           fetchQuarterlyData();
+          fetchAbsentStudents();
         }
       )
       .subscribe();
     
     return () => {
+      active = false;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [scope.loading, scopeKey]);
   
   useEffect(() => {
-    if (!isLoading) { // Evita buscar dados trimestrais na carga inicial duas vezes
+    if (!scope.loading && initialLoadDone.current) {
         fetchQuarterlyData();
-        fetchAbsentStudents();
-        fetchStats();
     }
-  }, [selectedQuarter, selectedDate, absenceQuarter, scopeKey]);
+  }, [selectedQuarter, selectedDate]);
+
+  useEffect(() => {
+    if (!scope.loading && initialLoadDone.current) {
+        fetchAbsentStudents();
+    }
+  }, [absenceQuarter]);
 
   useEffect(() => {
     let filtered = absentStudents.filter(student =>
@@ -221,15 +250,10 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         .gte("registration_date", startDate.toISOString())
         .lte("registration_date", endDate.toISOString());
       if (classIds !== null) regQ = regQ.in("class_id", classIds);
-      const { data: registrations } = await regQ;
-
-      let clsQ = supabase.from("classes").select("id, name");
-      if (classIds !== null) clsQ = clsQ.in("id", classIds);
-      const { data: classes } = await clsQ;
-
       let stuQ = supabase.from("students").select("id, class_id").eq("active", true);
       if (classIds !== null) stuQ = stuQ.in("class_id", classIds);
-      const { data: students } = await stuQ;
+      const [{ data: registrations }, { data: students }] = await Promise.all([regQ, stuQ]);
+      const classes = visibleClasses;
       
       if (registrations && classes) {
         // Processar dados mensais
@@ -378,11 +402,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
 
       let stuQ = supabase.from("students").select("id, name, class_id").eq("active", true);
       if (classIds !== null) stuQ = stuQ.in("class_id", classIds);
-      const { data: students } = await stuQ;
-
-      let clsQ = supabase.from("classes").select("id, name");
-      if (classIds !== null) clsQ = clsQ.in("id", classIds);
-      const { data: classes } = await clsQ;
+      const classes = visibleClasses;
 
       let regQ = supabase
         .from("registrations")
@@ -391,7 +411,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         .lte("registration_date", endDate.toISOString())
         .order("registration_date", { ascending: true });
       if (classIds !== null) regQ = regQ.in("class_id", classIds);
-      const { data: registrations } = await regQ;
+      const [{ data: students }, { data: registrations }] = await Promise.all([stuQ, regQ]);
       
       if (!students || !classes || !registrations) return;
       
@@ -401,9 +421,18 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
       // Analisar cada aluno
       const absentStudentsList: AbsentStudent[] = [];
       
+      const registrationsByClass = new Map<number, typeof registrations>();
+      registrations.forEach((reg) => {
+        const key = reg.class_id;
+        if (!key) return;
+        const list = registrationsByClass.get(key) ?? [];
+        list.push(reg);
+        registrationsByClass.set(key, list);
+      });
+
       students.forEach(student => {
         // Filtrar registros apenas da classe do aluno
-        const classRegistrations = registrations.filter(reg => reg.class_id === student.class_id);
+        const classRegistrations = registrationsByClass.get(student.class_id) ?? [];
         const totalSundays = classRegistrations.length;
         
         if (totalSundays === 0) return; // Pular alunos sem registros da classe
@@ -456,26 +485,20 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         const withClassFilter = <T extends { in: (col: string, vals: number[]) => T }>(q: T, col: string) =>
           classIds !== null ? q.in(col, classIds) : q;
 
-        let regAll = supabase.from("registrations").select("*", { count: "exact", head: true });
+        let regAll = supabase.from("registrations").select("id", { count: "exact", head: true });
         regAll = withClassFilter(regAll as any, "class_id");
-        const { count: totalRegistrations } = await regAll;
 
-        let stuAll = supabase.from("students").select("*", { count: "exact", head: true }).eq("active", true);
+        let stuAll = supabase.from("students").select("id", { count: "exact", head: true }).eq("active", true);
         stuAll = withClassFilter(stuAll as any, "class_id");
-        const { count: totalStudents } = await stuAll;
-
-        let clsAll = supabase.from("classes").select("*", { count: "exact", head: true });
-        clsAll = withClassFilter(clsAll as any, "id");
-        const { count: totalClasses } = await clsAll;
 
         const today = new Date().toISOString().split('T')[0];
-        let todayQ = supabase.from("registrations").select("*", { count: "exact", head: true }).gte("registration_date", `${today}T00:00:00Z`).lt("registration_date", `${today}T23:59:59Z`);
+        let todayQ = supabase.from("registrations").select("id", { count: "exact", head: true }).gte("registration_date", `${today}T00:00:00Z`).lt("registration_date", `${today}T23:59:59Z`);
         todayQ = withClassFilter(todayQ as any, "class_id");
-        const { count: todayRegistrations } = await todayQ;
 
         let aggQ = supabase.from("registrations").select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id");
         aggQ = withClassFilter(aggQ as any, "class_id");
-        const { data: aggregatedData } = await aggQ;
+        const [regCount, studentCount, todayCount, aggregated] = await Promise.all([regAll, stuAll, todayQ, aggQ]);
+        const aggregatedData = aggregated.data;
 
         let totalPresence = 0, totalVisitors = 0, totalOfferings = 0;
         const uniqueDates = new Set<string>();
@@ -494,10 +517,10 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         const numSundays = uniqueDates.size || 1;
 
         setStats({
-            totalRegistrations: totalRegistrations || 0,
-            totalStudents: totalStudents || 0,
-            totalClasses: totalClasses || 0,
-            todayRegistrations: todayRegistrations || 0,
+            totalRegistrations: regCount.count || 0,
+            totalStudents: studentCount.count || 0,
+            totalClasses: visibleClasses.length,
+            todayRegistrations: todayCount.count || 0,
             totalPresence: uniqueDates.size > 0 ? Math.round(totalPresence / numSundays) : 0,
             totalVisitors: uniqueDates.size > 0 ? Math.round(totalVisitors / numSundays) : 0,
             totalOfferings,

@@ -13,49 +13,67 @@ export interface SupabaseHealth {
 const PROJECT_URL =
   (import.meta as any).env?.VITE_SUPABASE_URL ?? "https://tqgsirutntejwkowplnc.supabase.co";
 
+const healthListeners = new Set<(v: SupabaseHealth) => void>();
+let healthState: SupabaseHealth = {
+  status: "checking",
+  lastError: null,
+  lastCheck: null,
+  projectUrl: PROJECT_URL,
+};
+let healthStarted = false;
+let healthTimer: ReturnType<typeof setInterval> | null = null;
+let healthInflight: Promise<void> | null = null;
+
+function emit(next: SupabaseHealth) {
+  healthState = next;
+  healthListeners.forEach((listener) => listener(next));
+}
+
+async function ping() {
+  if (healthInflight) return healthInflight;
+  healthInflight = (async () => {
+    try {
+      const { error } = await supabase
+        .from("system_settings")
+        .select("key")
+        .limit(1);
+      if (error) {
+        console.error("[Supabase] Falha no health-check:", error.message);
+        emit({ ...healthState, status: "offline", lastError: error.message, lastCheck: new Date() });
+      } else {
+        emit({ ...healthState, status: "online", lastError: null, lastCheck: new Date() });
+      }
+    } catch (e: any) {
+      console.error("[Supabase] Erro de rede no health-check:", e?.message ?? e);
+      emit({ ...healthState, status: "offline", lastError: e?.message ?? String(e), lastCheck: new Date() });
+    } finally {
+      healthInflight = null;
+    }
+  })();
+  return healthInflight;
+}
+
+function startHealth(intervalMs: number) {
+  if (healthStarted) return;
+  healthStarted = true;
+  ping();
+  healthTimer = setInterval(ping, intervalMs);
+}
+
 /**
  * Faz ping leve no banco a cada 30s para mostrar status de conexao.
  */
 export function useSupabaseHealth(intervalMs = 30000): SupabaseHealth {
-  const [status, setStatus] = useState<ConnStatus>("checking");
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [lastCheck, setLastCheck] = useState<Date | null>(null);
+  const [state, setState] = useState<SupabaseHealth>(healthState);
 
   useEffect(() => {
-    let active = true;
-    const ping = async () => {
-      try {
-        const { error } = await supabase
-          .from("ministries" as any)
-          .select("id", { head: true, count: "exact" })
-          .limit(1);
-        if (!active) return;
-        setLastCheck(new Date());
-        if (error) {
-          console.error("[Supabase] Falha no health-check:", error.message);
-          setLastError(error.message);
-          setStatus("offline");
-        } else {
-          setLastError(null);
-          setStatus("online");
-        }
-      } catch (e: any) {
-        if (!active) return;
-        console.error("[Supabase] Erro de rede no health-check:", e?.message ?? e);
-        setLastError(e?.message ?? String(e));
-        setStatus("offline");
-        setLastCheck(new Date());
-      }
-    };
-    ping();
-    const id = setInterval(ping, intervalMs);
-    const { data: sub } = supabase.auth.onAuthStateChange(() => ping());
+    startHealth(intervalMs);
+    healthListeners.add(setState);
+    setState(healthState);
     return () => {
-      active = false;
-      clearInterval(id);
-      sub.subscription.unsubscribe();
+      healthListeners.delete(setState);
     };
   }, [intervalMs]);
 
-  return { status, lastError, lastCheck, projectUrl: PROJECT_URL };
+  return state;
 }

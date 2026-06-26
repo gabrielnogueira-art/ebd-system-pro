@@ -61,7 +61,8 @@ async function loadFor(userId: string | null) {
   }
   const { data, error } = await supabase
     .from("user_roles" as any)
-    .select("role, ministry_id, headquarters_id, regional_id, congregation_id");
+    .select("role, ministry_id, headquarters_id, regional_id, congregation_id")
+    .eq("user_id", userId);
   if (error || !data || (data as any[]).length === 0) {
     emit({ ...EMPTY, loading: false });
     return;
