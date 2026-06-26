@@ -155,12 +155,25 @@ export const HierarchyTab = () => {
     congregation_id?: string | null;
     class_ids?: number[];
   }) => {
-    const { data, error } = await supabase.functions.invoke("create-entity-user", {
-      body: payload,
-    });
+    let data: any = null;
+    let error: any = null;
+    try {
+      const timeoutPromise = new Promise((_, rej) =>
+        setTimeout(() => rej(new Error("Tempo esgotado ao chamar create-entity-user (30s)")), 30000)
+      );
+      const invokePromise = supabase.functions.invoke("create-entity-user", { body: payload });
+      const res: any = await Promise.race([invokePromise, timeoutPromise]);
+      data = res?.data;
+      error = res?.error;
+    } catch (e: any) {
+      console.error("[createEntityUser] exceção", e);
+      handleError({ message: e?.message ?? "Falha ao chamar função" }, "Falha ao criar usuário");
+      return false;
+    }
     if (error) {
       // tenta extrair mensagem do corpo da função
       const msg = (data as any)?.error || error.message;
+      console.error("[createEntityUser] erro do invoke", error, data);
       handleError({ message: msg }, "Falha ao criar usuário");
       return false;
     }
