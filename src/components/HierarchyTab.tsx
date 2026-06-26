@@ -86,16 +86,17 @@ export const HierarchyTab = () => {
         .insert({ name, city })
         .select()
         .single();
-      if (mErr) return handleError(mErr, "Falha ao criar ministério");
+      if (mErr || !min) { handleError(mErr ?? { message: "Ministério não retornado" }, "Falha ao criar ministério"); return; }
       // 2) Sede
       const { data: hq, error: hErr } = await db
         .from("headquarters")
         .insert({ name, city, ministry_id: min.id })
         .select()
         .single();
-      if (hErr) {
+      if (hErr || !hq) {
         await db.from("ministries").delete().eq("id", min.id);
-        return handleError(hErr, "Falha ao criar sede");
+        handleError(hErr ?? { message: "Sede não retornada" }, "Falha ao criar sede");
+        return;
       }
       // 3) Congregação (marcada como sede para indicar entidade única)
       const { data: cong, error: cErr } = await db
@@ -108,10 +109,11 @@ export const HierarchyTab = () => {
         })
         .select()
         .single();
-      if (cErr) {
+      if (cErr || !cong) {
         await db.from("headquarters").delete().eq("id", hq.id);
         await db.from("ministries").delete().eq("id", min.id);
-        return handleError(cErr, "Falha ao criar congregação");
+        handleError(cErr ?? { message: "Congregação não retornada" }, "Falha ao criar congregação");
+        return;
       }
       // 4) Login secretário vinculado à congregação
       const ok2 = await createEntityUser({
@@ -134,6 +136,9 @@ export const HierarchyTab = () => {
       setNewIndep({ name: "", city: "", email: "", password: "" });
       ok("Igreja independente criada");
       load();
+    } catch (e: any) {
+      console.error("[addIndependentChurch] erro inesperado", e);
+      handleError({ message: e?.message ?? "Erro inesperado" }, "Falha ao criar igreja independente");
     } finally {
       setCreatingIndep(false);
     }
@@ -150,12 +155,25 @@ export const HierarchyTab = () => {
     congregation_id?: string | null;
     class_ids?: number[];
   }) => {
-    const { data, error } = await supabase.functions.invoke("create-entity-user", {
-      body: payload,
-    });
+    let data: any = null;
+    let error: any = null;
+    try {
+      const timeoutPromise = new Promise((_, rej) =>
+        setTimeout(() => rej(new Error("Tempo esgotado ao chamar create-entity-user (30s)")), 30000)
+      );
+      const invokePromise = supabase.functions.invoke("create-entity-user", { body: payload });
+      const res: any = await Promise.race([invokePromise, timeoutPromise]);
+      data = res?.data;
+      error = res?.error;
+    } catch (e: any) {
+      console.error("[createEntityUser] exceção", e);
+      handleError({ message: e?.message ?? "Falha ao chamar função" }, "Falha ao criar usuário");
+      return false;
+    }
     if (error) {
       // tenta extrair mensagem do corpo da função
       const msg = (data as any)?.error || error.message;
+      console.error("[createEntityUser] erro do invoke", error, data);
       handleError({ message: msg }, "Falha ao criar usuário");
       return false;
     }
