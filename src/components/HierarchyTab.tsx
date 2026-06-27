@@ -50,6 +50,10 @@ export const HierarchyTab = () => {
   const [newHqAuth, setNewHqAuth] = useState({ email: "", password: "" });
   const [newRegionalAuth, setNewRegionalAuth] = useState({ email: "", password: "" });
   const [newCongAuth, setNewCongAuth] = useState({ email: "", password: "" });
+  const [creatingMinistry, setCreatingMinistry] = useState(false);
+  const [creatingHq, setCreatingHq] = useState(false);
+  const [creatingRegional, setCreatingRegional] = useState(false);
+  const [creatingCongregation, setCreatingCongregation] = useState(false);
 
   // Form criar professor
   const [newTeacher, setNewTeacher] = useState({
@@ -103,11 +107,11 @@ export const HierarchyTab = () => {
   };
 
   const createEntityUser = async (payload: {
-    action?: "create_user" | "create_independent_church";
+    action?: "create_user" | "create_independent_church" | "create_ministry" | "create_headquarters" | "create_regional" | "create_congregation";
     name?: string;
     city?: string | null;
-    email: string;
-    password: string;
+    email?: string;
+    password?: string;
     display_name?: string;
     role?: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
     ministry_id?: string | null;
@@ -115,6 +119,7 @@ export const HierarchyTab = () => {
     regional_id?: string | null;
     congregation_id?: string | null;
     class_ids?: number[];
+    is_headquarters?: boolean;
   }) => {
     let data: any = null;
     let error: any = null;
@@ -268,63 +273,40 @@ export const HierarchyTab = () => {
 
   // ----- CREATE -----
   const addMinistry = async () => {
-    if (!newMinistry.name.trim()) return;
-    const wantsUser = !!(newMinistryAuth.email.trim() && newMinistryAuth.password);
-    const { data: inserted, error } = await db
-      .from("ministries")
-      .insert({
-        name: newMinistry.name.trim(),
-        city: newMinistry.city.trim() || null,
-      })
-      .select()
-      .single();
-    if (error) return handleError(error, "Falha ao criar ministerio");
-    if (wantsUser) {
-      const ok2 = await createEntityUser({
-        email: newMinistryAuth.email.trim(),
-        password: newMinistryAuth.password,
-        display_name: newMinistry.name.trim(),
-        role: "igreja_mae",
-        ministry_id: inserted.id,
-      });
-      if (!ok2) {
-        await load();
-        return;
-      }
-    }
+    const name = newMinistry.name.trim();
+    if (!name) return handleError({ message: "Informe o nome do ministério" }, "Dados incompletos");
+    setCreatingMinistry(true);
+    const created = await createEntityUser({
+      action: "create_ministry",
+      name,
+      city: newMinistry.city.trim() || null,
+      email: newMinistryAuth.email.trim() || undefined,
+      password: newMinistryAuth.password || undefined,
+      display_name: name,
+    });
+    setCreatingMinistry(false);
+    if (!created) return;
     setNewMinistry({ name: "", city: "" });
     setNewMinistryAuth({ email: "", password: "" });
-    ok("Ministerio criado");
+    ok("Ministério criado");
     load();
   };
 
   const addHq = async () => {
-    if (!newHq.name.trim() || !newHq.ministry_id) return;
-    const wantsUser = !!(newHqAuth.email.trim() && newHqAuth.password);
-    const { data: inserted, error } = await db
-      .from("headquarters")
-      .insert({
-        name: newHq.name.trim(),
-        city: newHq.city.trim() || null,
-        ministry_id: newHq.ministry_id,
-      })
-      .select()
-      .single();
-    if (error) return handleError(error, "Falha ao criar sede");
-    if (wantsUser) {
-      const ok2 = await createEntityUser({
-        email: newHqAuth.email.trim(),
-        password: newHqAuth.password,
-        display_name: newHq.name.trim(),
-        role: "igreja_sede",
-        ministry_id: newHq.ministry_id,
-        headquarters_id: inserted.id,
-      });
-      if (!ok2) {
-        await load();
-        return;
-      }
-    }
+    const name = newHq.name.trim();
+    if (!name || !newHq.ministry_id) return handleError({ message: "Informe ministério e nome da sede" }, "Dados incompletos");
+    setCreatingHq(true);
+    const created = await createEntityUser({
+      action: "create_headquarters",
+      name,
+      city: newHq.city.trim() || null,
+      ministry_id: newHq.ministry_id,
+      email: newHqAuth.email.trim() || undefined,
+      password: newHqAuth.password || undefined,
+      display_name: name,
+    });
+    setCreatingHq(false);
+    if (!created) return;
     setNewHq({ name: "", city: "", ministry_id: "" });
     setNewHqAuth({ email: "", password: "" });
     ok("Igreja Sede criada");
@@ -332,31 +314,19 @@ export const HierarchyTab = () => {
   };
 
   const addRegional = async () => {
-    if (!newRegional.name.trim() || !newRegional.headquarters_id) return;
-    const wantsUser = !!(newRegionalAuth.email.trim() && newRegionalAuth.password);
-    const { data: inserted, error } = await db
-      .from("regionals")
-      .insert({
-        name: newRegional.name.trim(),
-        headquarters_id: newRegional.headquarters_id,
-      })
-      .select()
-      .single();
-    if (error) return handleError(error, "Falha ao criar regional");
-    if (wantsUser) {
-      const ok2 = await createEntityUser({
-        email: newRegionalAuth.email.trim(),
-        password: newRegionalAuth.password,
-        display_name: newRegional.name.trim(),
-        role: "admin_regional",
-        headquarters_id: newRegional.headquarters_id,
-        regional_id: inserted.id,
-      });
-      if (!ok2) {
-        await load();
-        return;
-      }
-    }
+    const name = newRegional.name.trim();
+    if (!name || !newRegional.headquarters_id) return handleError({ message: "Informe sede e nome da regional" }, "Dados incompletos");
+    setCreatingRegional(true);
+    const created = await createEntityUser({
+      action: "create_regional",
+      name,
+      headquarters_id: newRegional.headquarters_id,
+      email: newRegionalAuth.email.trim() || undefined,
+      password: newRegionalAuth.password || undefined,
+      display_name: name,
+    });
+    setCreatingRegional(false);
+    if (!created) return;
     setNewRegional({ name: "", headquarters_id: "" });
     setNewRegionalAuth({ email: "", password: "" });
     ok("Regional criada");
@@ -364,37 +334,24 @@ export const HierarchyTab = () => {
   };
 
   const addCongregation = async () => {
-    if (!newCong.name.trim() || !newCong.headquarters_id) return;
-    const wantsUser = !!(newCongAuth.email.trim() && newCongAuth.password);
-    const { data: inserted, error } = await db
-      .from("congregations")
-      .insert({
-        name: newCong.name.trim(),
-        headquarters_id: newCong.headquarters_id,
-        regional_id: newCong.regional_id || null,
-        is_headquarters: newCong.is_headquarters,
-      })
-      .select()
-      .single();
-    if (error) return handleError(error, "Falha ao criar congregacao");
-    if (wantsUser) {
-      const ok2 = await createEntityUser({
-        email: newCongAuth.email.trim(),
-        password: newCongAuth.password,
-        display_name: newCong.name.trim(),
-        role: "secretario_ebd",
-        headquarters_id: newCong.headquarters_id,
-        regional_id: newCong.regional_id || null,
-        congregation_id: inserted.id,
-      });
-      if (!ok2) {
-        await load();
-        return;
-      }
-    }
+    const name = newCong.name.trim();
+    if (!name || !newCong.headquarters_id) return handleError({ message: "Informe sede e nome da congregação" }, "Dados incompletos");
+    setCreatingCongregation(true);
+    const created = await createEntityUser({
+      action: "create_congregation",
+      name,
+      headquarters_id: newCong.headquarters_id,
+      regional_id: newCong.regional_id || null,
+      is_headquarters: newCong.is_headquarters,
+      email: newCongAuth.email.trim() || undefined,
+      password: newCongAuth.password || undefined,
+      display_name: name,
+    });
+    setCreatingCongregation(false);
+    if (!created) return;
     setNewCong({ name: "", headquarters_id: "", regional_id: "", is_headquarters: false });
     setNewCongAuth({ email: "", password: "" });
-    ok("Congregacao criada");
+    ok("Congregação criada");
     load();
   };
 
