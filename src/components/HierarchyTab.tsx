@@ -460,12 +460,17 @@ export const HierarchyTab = () => {
     );
   };
 
-  const hqName = (id: string) => headquarters.find((h) => h.id === id)?.name ?? "-";
+  const ministryById = useMemo(() => new Map(ministries.map((m) => [m.id, m])), [ministries]);
+  const hqById = useMemo(() => new Map(headquarters.map((h) => [h.id, h])), [headquarters]);
+  const regionalById = useMemo(() => new Map(regionals.map((r) => [r.id, r])), [regionals]);
+  const congregationById = useMemo(() => new Map(congregations.map((c) => [c.id, c])), [congregations]);
+
+  const hqName = (id: string) => hqById.get(id)?.name ?? "-";
   const regionalName = (id: string | null) =>
-    id ? regionals.find((r) => r.id === id)?.name ?? "-" : "-";
-  const ministryName = (id: string) => ministries.find((m) => m.id === id)?.name ?? "-";
+    id ? regionalById.get(id)?.name ?? "-" : "-";
+  const ministryName = (id: string) => ministryById.get(id)?.name ?? "-";
   const congregationName = (id: string | null) =>
-    id ? congregations.find((c) => c.id === id)?.name ?? "-" : "-";
+    id ? congregationById.get(id)?.name ?? "-" : "-";
 
   const [sortConfig, setSortConfig] = useState<{table: string, key: string, direction: 'asc'|'desc'} | null>(null);
 
