@@ -138,7 +138,15 @@ export const HierarchyTab = () => {
     }
     if (error) {
       // tenta extrair mensagem do corpo da função
-      const msg = (data as any)?.error || error.message;
+      let msg = (data as any)?.error || error.message;
+      try {
+        if ((error as any)?.context?.json) {
+          const body = await (error as any).context.json();
+          msg = body?.error || msg;
+        }
+      } catch {
+        // mantém a mensagem original do Supabase
+      }
       console.error("[createEntityUser] erro do invoke", error, data);
       handleError({ message: msg }, "Falha ao criar usuário");
       return false;
@@ -283,8 +291,7 @@ export const HierarchyTab = () => {
       email: newMinistryAuth.email.trim() || undefined,
       password: newMinistryAuth.password || undefined,
       display_name: name,
-    });
-    setCreatingMinistry(false);
+    }).finally(() => setCreatingMinistry(false));
     if (!created) return;
     setNewMinistry({ name: "", city: "" });
     setNewMinistryAuth({ email: "", password: "" });
@@ -304,8 +311,7 @@ export const HierarchyTab = () => {
       email: newHqAuth.email.trim() || undefined,
       password: newHqAuth.password || undefined,
       display_name: name,
-    });
-    setCreatingHq(false);
+    }).finally(() => setCreatingHq(false));
     if (!created) return;
     setNewHq({ name: "", city: "", ministry_id: "" });
     setNewHqAuth({ email: "", password: "" });
@@ -324,8 +330,7 @@ export const HierarchyTab = () => {
       email: newRegionalAuth.email.trim() || undefined,
       password: newRegionalAuth.password || undefined,
       display_name: name,
-    });
-    setCreatingRegional(false);
+    }).finally(() => setCreatingRegional(false));
     if (!created) return;
     setNewRegional({ name: "", headquarters_id: "" });
     setNewRegionalAuth({ email: "", password: "" });
@@ -346,8 +351,7 @@ export const HierarchyTab = () => {
       email: newCongAuth.email.trim() || undefined,
       password: newCongAuth.password || undefined,
       display_name: name,
-    });
-    setCreatingCongregation(false);
+    }).finally(() => setCreatingCongregation(false));
     if (!created) return;
     setNewCong({ name: "", headquarters_id: "", regional_id: "", is_headquarters: false });
     setNewCongAuth({ email: "", password: "" });
