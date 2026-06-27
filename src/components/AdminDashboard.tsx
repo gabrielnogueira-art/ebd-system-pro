@@ -88,6 +88,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
   }, [classIds, scope.classes]);
   const loadSeq = useRef(0);
   const initialLoadDone = useRef(false);
+  const realtimeRefreshTimer = useRef<number | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalStudents: 0,
@@ -147,15 +148,18 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
           table: 'registrations'
         },
         () => {
-          fetchStats();
-          fetchQuarterlyData();
-          fetchAbsentStudents();
+          if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+          realtimeRefreshTimer.current = window.setTimeout(() => {
+            fetchStats();
+            fetchQuarterlyData();
+          }, 400);
         }
       )
       .subscribe();
     
     return () => {
       active = false;
+      if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
       supabase.removeChannel(channel);
     };
   }, [scope.loading, scopeKey]);
@@ -482,48 +486,18 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
           setStats({ totalRegistrations: 0, totalStudents: 0, totalClasses: 0, todayRegistrations: 0, totalPresence: 0, totalVisitors: 0, totalOfferings: 0 });
           return;
         }
-        const withClassFilter = <T extends { in: (col: string, vals: number[]) => T }>(q: T, col: string) =>
-          classIds !== null ? q.in(col, classIds) : q;
-
-        let regAll = supabase.from("registrations").select("id", { count: "exact", head: true });
-        regAll = withClassFilter(regAll as any, "class_id");
-
-        let stuAll = supabase.from("students").select("id", { count: "exact", head: true }).eq("active", true);
-        stuAll = withClassFilter(stuAll as any, "class_id");
-
-        const today = new Date().toISOString().split('T')[0];
-        let todayQ = supabase.from("registrations").select("id", { count: "exact", head: true }).gte("registration_date", `${today}T00:00:00Z`).lt("registration_date", `${today}T23:59:59Z`);
-        todayQ = withClassFilter(todayQ as any, "class_id");
-
-        let aggQ = supabase.from("registrations").select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id");
-        aggQ = withClassFilter(aggQ as any, "class_id");
-        const [regCount, studentCount, todayCount, aggregated] = await Promise.all([regAll, stuAll, todayQ, aggQ]);
-        const aggregatedData = aggregated.data;
-
-        let totalPresence = 0, totalVisitors = 0, totalOfferings = 0;
-        const uniqueDates = new Set<string>();
-
-        if (aggregatedData) {
-            aggregatedData.forEach((record) => {
-            if (record.registration_date) {
-                uniqueDates.add(record.registration_date.split('T')[0]);
-            }
-            totalPresence += record.total_present || 0;
-            totalVisitors += record.visitors || 0;
-            totalOfferings += (parseFloat(String(record.offering_cash || 0)) + parseFloat(String(record.offering_pix || 0)));
-            });
-        }
-        
-        const numSundays = uniqueDates.size || 1;
-
+        const { data, error } = await (supabase as any).rpc("get_admin_dashboard_summary", {
+          _class_ids: classIds,
+        });
+        if (error) throw error;
         setStats({
-            totalRegistrations: regCount.count || 0,
-            totalStudents: studentCount.count || 0,
-            totalClasses: visibleClasses.length,
-            todayRegistrations: todayCount.count || 0,
-            totalPresence: uniqueDates.size > 0 ? Math.round(totalPresence / numSundays) : 0,
-            totalVisitors: uniqueDates.size > 0 ? Math.round(totalVisitors / numSundays) : 0,
-            totalOfferings,
+            totalRegistrations: Number(data?.totalRegistrations ?? 0),
+            totalStudents: Number(data?.totalStudents ?? 0),
+            totalClasses: Number(data?.totalClasses ?? visibleClasses.length),
+            todayRegistrations: Number(data?.todayRegistrations ?? 0),
+            totalPresence: Number(data?.totalPresence ?? 0),
+            totalVisitors: Number(data?.totalVisitors ?? 0),
+            totalOfferings: Number(data?.totalOfferings ?? 0),
         });
     } catch (error) {
         console.error("Error fetching stats:", error);

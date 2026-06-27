@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ type Congregation = {
 type ClassRow = { id: number; name: string; congregation_id: string | null };
 
 const db = supabase as any;
+const LIST_LIMIT = 150;
 
 export const HierarchyTab = () => {
   const { toast } = useToast();
@@ -67,6 +68,7 @@ export const HierarchyTab = () => {
     password: "",
   });
   const [creatingIndep, setCreatingIndep] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   const addIndependentChurch = async () => {
     const name = newIndep.name.trim();
@@ -80,59 +82,15 @@ export const HierarchyTab = () => {
     setCreatingIndep(true);
     try {
       const city = newIndep.city.trim() || null;
-      // 1) Ministério
-      const { data: min, error: mErr } = await db
-        .from("ministries")
-        .insert({ name, city })
-        .select()
-        .single();
-      if (mErr || !min) { handleError(mErr ?? { message: "Ministério não retornado" }, "Falha ao criar ministério"); return; }
-      // 2) Sede
-      const { data: hq, error: hErr } = await db
-        .from("headquarters")
-        .insert({ name, city, ministry_id: min.id })
-        .select()
-        .single();
-      if (hErr || !hq) {
-        await db.from("ministries").delete().eq("id", min.id);
-        handleError(hErr ?? { message: "Sede não retornada" }, "Falha ao criar sede");
-        return;
-      }
-      // 3) Congregação (marcada como sede para indicar entidade única)
-      const { data: cong, error: cErr } = await db
-        .from("congregations")
-        .insert({
-          name,
-          headquarters_id: hq.id,
-          regional_id: null,
-          is_headquarters: true,
-        })
-        .select()
-        .single();
-      if (cErr || !cong) {
-        await db.from("headquarters").delete().eq("id", hq.id);
-        await db.from("ministries").delete().eq("id", min.id);
-        handleError(cErr ?? { message: "Congregação não retornada" }, "Falha ao criar congregação");
-        return;
-      }
-      // 4) Login secretário vinculado à congregação
-      const ok2 = await createEntityUser({
+      const created = await createEntityUser({
+        action: "create_independent_church",
+        name,
+        city,
         email: newIndep.email.trim(),
         password: newIndep.password,
         display_name: name,
-        role: "secretario_ebd",
-        headquarters_id: hq.id,
-        regional_id: null,
-        congregation_id: cong.id,
       });
-      if (!ok2) {
-        // rollback estrutural
-        await db.from("congregations").delete().eq("id", cong.id);
-        await db.from("headquarters").delete().eq("id", hq.id);
-        await db.from("ministries").delete().eq("id", min.id);
-        await load();
-        return;
-      }
+      if (!created) return;
       setNewIndep({ name: "", city: "", email: "", password: "" });
       ok("Igreja independente criada");
       load();
@@ -145,10 +103,13 @@ export const HierarchyTab = () => {
   };
 
   const createEntityUser = async (payload: {
+    action?: "create_user" | "create_independent_church";
+    name?: string;
+    city?: string | null;
     email: string;
     password: string;
     display_name?: string;
-    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
+    role?: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
     ministry_id?: string | null;
     headquarters_id?: string | null;
     regional_id?: string | null;
@@ -159,7 +120,7 @@ export const HierarchyTab = () => {
     let error: any = null;
     try {
       const timeoutPromise = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error("Tempo esgotado ao chamar create-entity-user (30s)")), 30000)
+        setTimeout(() => rej(new Error("Tempo esgotado ao criar usuário/igreja (30s)")), 30000)
       );
       const invokePromise = supabase.functions.invoke("create-entity-user", { body: payload });
       const res: any = await Promise.race([invokePromise, timeoutPromise]);
@@ -270,18 +231,25 @@ export const HierarchyTab = () => {
   };
 
   const load = async () => {
-    const [m, h, r, c, cl] = await Promise.all([
-      db.from("ministries").select("*").order("name"),
-      db.from("headquarters").select("*").order("name"),
-      db.from("regionals").select("*").order("name"),
-      db.from("congregations").select("*").order("name"),
-      db.from("classes").select("id, name, congregation_id").order("name"),
-    ]);
-    setMinistries(m.data ?? []);
-    setHeadquarters(h.data ?? []);
-    setRegionals(r.data ?? []);
-    setCongregations(c.data ?? []);
-    setClasses(cl.data ?? []);
+    setLoadingData(true);
+    try {
+      const [m, h, r, c, cl] = await Promise.all([
+        db.from("ministries").select("id,name,city").order("name"),
+        db.from("headquarters").select("id,name,city,ministry_id").order("name"),
+        db.from("regionals").select("id,name,headquarters_id").order("name"),
+        db.from("congregations").select("id,name,is_headquarters,headquarters_id,regional_id").order("name"),
+        db.from("classes").select("id, name, congregation_id").order("name"),
+      ]);
+      const err = m.error || h.error || r.error || c.error || cl.error;
+      if (err) handleError(err, "Falha ao carregar estrutura");
+      setMinistries(m.data ?? []);
+      setHeadquarters(h.data ?? []);
+      setRegionals(r.data ?? []);
+      setCongregations(c.data ?? []);
+      setClasses(cl.data ?? []);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   useEffect(() => {
@@ -492,12 +460,17 @@ export const HierarchyTab = () => {
     );
   };
 
-  const hqName = (id: string) => headquarters.find((h) => h.id === id)?.name ?? "-";
+  const ministryById = useMemo(() => new Map(ministries.map((m) => [m.id, m])), [ministries]);
+  const hqById = useMemo(() => new Map(headquarters.map((h) => [h.id, h])), [headquarters]);
+  const regionalById = useMemo(() => new Map(regionals.map((r) => [r.id, r])), [regionals]);
+  const congregationById = useMemo(() => new Map(congregations.map((c) => [c.id, c])), [congregations]);
+
+  const hqName = (id: string) => hqById.get(id)?.name ?? "-";
   const regionalName = (id: string | null) =>
-    id ? regionals.find((r) => r.id === id)?.name ?? "-" : "-";
-  const ministryName = (id: string) => ministries.find((m) => m.id === id)?.name ?? "-";
+    id ? regionalById.get(id)?.name ?? "-" : "-";
+  const ministryName = (id: string) => ministryById.get(id)?.name ?? "-";
   const congregationName = (id: string | null) =>
-    id ? congregations.find((c) => c.id === id)?.name ?? "-" : "-";
+    id ? congregationById.get(id)?.name ?? "-" : "-";
 
   const [sortConfig, setSortConfig] = useState<{table: string, key: string, direction: 'asc'|'desc'} | null>(null);
 
@@ -550,8 +523,18 @@ export const HierarchyTab = () => {
   const filteredClasses = classes.filter(cl => cl.name.toLowerCase().includes(searchClass.toLowerCase()) || congregationName(cl.congregation_id).toLowerCase().includes(searchClass.toLowerCase()));
   const sortedClasses = getSorted(filteredClasses, 'classes', { cong: (cl) => congregationName(cl.congregation_id) });
 
+  const limitRows = <T,>(rows: T[], search: string) => search.trim() ? rows : rows.slice(0, LIST_LIMIT);
+  const limitedMinistries = limitRows(sortedMinistries, searchMinistry);
+  const limitedHq = limitRows(sortedHq, searchHq);
+  const limitedRegionals = limitRows(sortedRegionals, searchRegional);
+  const limitedCongregations = limitRows(sortedCongregations, searchCongregation);
+  const limitedClasses = limitRows(sortedClasses, searchClass);
+  const limitNote = (shown: number, total: number, label: string) =>
+    shown < total ? <p className="text-xs text-muted-foreground">Mostrando {shown} de {total} {label}. Use a busca para filtrar.</p> : null;
+
   return (
     <div className="space-y-6">
+      {loadingData && <p className="text-sm text-muted-foreground">Carregando estrutura...</p>}
       {/* Igreja Independente (modo modular) */}
       <Card className="border-primary/30">
         <CardHeader>
@@ -673,7 +656,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedMinistries.map((m) => (
+              {limitedMinistries.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>{m.name}</TableCell>
                   <TableCell>{m.city ?? "-"}</TableCell>
@@ -695,6 +678,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedMinistries.length, sortedMinistries.length, "ministérios")}
         </CardContent>
       </Card>
 
@@ -783,7 +767,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedHq.map((h) => (
+              {limitedHq.map((h) => (
                 <TableRow key={h.id}>
                   <TableCell>{h.name}</TableCell>
                   <TableCell>{h.city ?? "-"}</TableCell>
@@ -806,6 +790,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedHq.length, sortedHq.length, "sedes")}
         </CardContent>
       </Card>
 
@@ -886,7 +871,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedRegionals.map((r) => (
+              {limitedRegionals.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.name}</TableCell>
                   <TableCell>{hqName(r.headquarters_id)}</TableCell>
@@ -908,6 +893,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedRegionals.length, sortedRegionals.length, "regionais")}
         </CardContent>
       </Card>
 
@@ -1020,7 +1006,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedCongregations.map((c) => (
+              {limitedCongregations.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>{c.name}</TableCell>
                   <TableCell>{hqName(c.headquarters_id)}</TableCell>
@@ -1054,6 +1040,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedCongregations.length, sortedCongregations.length, "congregações")}
         </CardContent>
       </Card>
 
@@ -1081,7 +1068,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedClasses.map((cl) => (
+              {limitedClasses.map((cl) => (
                 <TableRow key={cl.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -1113,6 +1100,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedClasses.length, sortedClasses.length, "classes")}
         </CardContent>
       </Card>
 
