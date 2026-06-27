@@ -14,11 +14,17 @@ type Role =
   | "professor_classe";
 
 interface Body {
-  action?: "create_user" | "create_independent_church";
+  action?:
+    | "create_user"
+    | "create_independent_church"
+    | "create_ministry"
+    | "create_headquarters"
+    | "create_regional"
+    | "create_congregation";
   name?: string;
   city?: string | null;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
   display_name?: string;
   role?: Role;
   ministry_id?: string | null;
@@ -60,8 +66,9 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as Body;
     const { email, password, display_name } = body;
     const role = body.role;
-    if (!email || !password) return json({ error: "E-mail e senha são obrigatórios" }, 400);
-    if (password.length < 6) return json({ error: "Senha mínima de 6 caracteres" }, 400);
+    const wantsAuthUser = !!(email || password);
+    if (wantsAuthUser && (!email || !password)) return json({ error: "Preencha e-mail e senha, ou deixe ambos vazios" }, 400);
+    if (password && password.length < 6) return json({ error: "Senha mínima de 6 caracteres" }, 400);
 
     // Permissões: master sempre pode. Demais conforme o escopo.
     const { data: rolesData } = await admin
@@ -71,7 +78,145 @@ Deno.serve(async (req) => {
     const callerRoles = (rolesData ?? []) as CallerRole[];
     const isMaster = callerRoles.some((r) => r.role === "master");
 
-    if ((body.action ?? "create_user") === "create_independent_church") {
+    const action = body.action ?? "create_user";
+
+    if (action !== "create_user" && action !== "create_independent_church") {
+      const name = body.name?.trim();
+      if (!name) return json({ error: "Informe o nome" }, 400);
+
+      let entityTable: "ministries" | "headquarters" | "regionals" | "congregations" | null = null;
+      let entityId: string | null = null;
+      let authUserId: string | null = null;
+      let targetRole: Role | null = null;
+      let targetMinistry = body.ministry_id ?? null;
+      let targetHq = body.headquarters_id ?? null;
+      let targetRegional = body.regional_id ?? null;
+      let targetCongregation = body.congregation_id ?? null;
+
+      const hasMinistry = (mid: string) =>
+        callerRoles.some((r) => r.role === "igreja_mae" && r.ministry_id === mid);
+      const hasHq = (hid: string) =>
+        callerRoles.some((r) => r.role === "igreja_sede" && r.headquarters_id === hid);
+      const hasRegional = (rid: string) =>
+        callerRoles.some((r) => r.role === "admin_regional" && r.regional_id === rid);
+
+      try {
+        if (action === "create_ministry") {
+          if (!isMaster) return json({ error: "Apenas Master pode criar ministérios" }, 403);
+          const { data, error } = await admin
+            .from("ministries")
+            .insert({ name, city: body.city?.trim() || null })
+            .select("id")
+            .single();
+          if (error || !data) throw new Error(error?.message ?? "Ministério não retornado");
+          entityTable = "ministries";
+          entityId = (data as { id: string }).id;
+          targetMinistry = entityId;
+          targetRole = "igreja_mae";
+        }
+
+        if (action === "create_headquarters") {
+          if (!targetMinistry) return json({ error: "Informe o ministério da sede" }, 400);
+          if (!isMaster && !hasMinistry(targetMinistry)) return json({ error: "Sem permissão para criar sede neste ministério" }, 403);
+          const { data, error } = await admin
+            .from("headquarters")
+            .insert({ name, city: body.city?.trim() || null, ministry_id: targetMinistry })
+            .select("id")
+            .single();
+          if (error || !data) throw new Error(error?.message ?? "Sede não retornada");
+          entityTable = "headquarters";
+          entityId = (data as { id: string }).id;
+          targetHq = entityId;
+          targetRole = "igreja_sede";
+        }
+
+        if (action === "create_regional") {
+          if (!targetHq) return json({ error: "Informe a sede da regional" }, 400);
+          const { data: hq } = await admin.from("headquarters").select("ministry_id").eq("id", targetHq).maybeSingle();
+          const hqMinistry = (hq as any)?.ministry_id as string | undefined;
+          if (!hqMinistry) return json({ error: "Sede inválida" }, 400);
+          if (!isMaster && !hasHq(targetHq) && !hasMinistry(hqMinistry)) {
+            return json({ error: "Sem permissão para criar regional nesta sede" }, 403);
+          }
+          const { data, error } = await admin
+            .from("regionals")
+            .insert({ name, headquarters_id: targetHq })
+            .select("id")
+            .single();
+          if (error || !data) throw new Error(error?.message ?? "Regional não retornada");
+          entityTable = "regionals";
+          entityId = (data as { id: string }).id;
+          targetRegional = entityId;
+          targetRole = "admin_regional";
+        }
+
+        if (action === "create_congregation") {
+          if (!targetHq) return json({ error: "Informe a sede da congregação" }, 400);
+          const { data: hq } = await admin.from("headquarters").select("ministry_id").eq("id", targetHq).maybeSingle();
+          const hqMinistry = (hq as any)?.ministry_id as string | undefined;
+          if (!hqMinistry) return json({ error: "Sede inválida" }, 400);
+          if (targetRegional) {
+            const { data: regional } = await admin.from("regionals").select("headquarters_id").eq("id", targetRegional).maybeSingle();
+            if (!regional || (regional as any).headquarters_id !== targetHq) {
+              return json({ error: "A regional selecionada não pertence à sede informada" }, 400);
+            }
+          }
+          const allowed = isMaster || hasHq(targetHq) || hasMinistry(hqMinistry) || (!!targetRegional && hasRegional(targetRegional));
+          if (!allowed) return json({ error: "Sem permissão para criar congregação nesta estrutura" }, 403);
+          const { data, error } = await admin
+            .from("congregations")
+            .insert({
+              name,
+              headquarters_id: targetHq,
+              regional_id: targetRegional,
+              is_headquarters: !!body.congregation_id,
+            })
+            .select("id")
+            .single();
+          if (error || !data) throw new Error(error?.message ?? "Congregação não retornada");
+          entityTable = "congregations";
+          entityId = (data as { id: string }).id;
+          targetCongregation = entityId;
+          targetRole = "secretario_ebd";
+        }
+
+        if (wantsAuthUser && targetRole && email && password) {
+          const { data: created, error: createErr } = await admin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { display_name: display_name ?? name },
+          });
+          if (createErr || !created.user) throw new Error(createErr?.message ?? "Falha ao criar usuário");
+          authUserId = created.user.id;
+
+          await admin
+            .from("pending_users")
+            .update({ status: "approved", decided_by: callerId, decided_at: new Date().toISOString() })
+            .eq("user_id", authUserId);
+
+          const { error: roleErr } = await admin.from("user_roles").insert({
+            user_id: authUserId,
+            role: targetRole,
+            ministry_id: targetMinistry,
+            headquarters_id: targetHq,
+            regional_id: targetRegional,
+            congregation_id: targetCongregation,
+          });
+          if (roleErr) throw new Error(`Falha ao atribuir papel: ${roleErr.message}`);
+        }
+
+        return json({ ok: true, id: entityId, user_id: authUserId }, 200);
+      } catch (e: any) {
+        if (authUserId) await admin.auth.admin.deleteUser(authUserId);
+        if (entityTable && entityId) await admin.from(entityTable).delete().eq("id", entityId);
+        console.error(`[${action}] rollback after error:`, e?.message ?? e);
+        return json({ error: e?.message ?? "Falha ao criar item da estrutura" }, 400);
+      }
+    }
+
+    if (action === "create_independent_church") {
+      if (!email || !password) return json({ error: "E-mail e senha são obrigatórios" }, 400);
       if (!isMaster) return json({ error: "Apenas Master pode criar uma igreja independente" }, 403);
       const name = body.name?.trim();
       if (!name) return json({ error: "Informe o nome da igreja" }, 400);
@@ -142,6 +287,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (!email || !password) return json({ error: "E-mail e senha são obrigatórios" }, 400);
     if (!role) return json({ error: "Informe o papel do usuário" }, 400);
 
     const hasMinistry = (mid: string) =>
