@@ -523,8 +523,18 @@ export const HierarchyTab = () => {
   const filteredClasses = classes.filter(cl => cl.name.toLowerCase().includes(searchClass.toLowerCase()) || congregationName(cl.congregation_id).toLowerCase().includes(searchClass.toLowerCase()));
   const sortedClasses = getSorted(filteredClasses, 'classes', { cong: (cl) => congregationName(cl.congregation_id) });
 
+  const limitRows = <T,>(rows: T[], search: string) => search.trim() ? rows : rows.slice(0, LIST_LIMIT);
+  const limitedMinistries = limitRows(sortedMinistries, searchMinistry);
+  const limitedHq = limitRows(sortedHq, searchHq);
+  const limitedRegionals = limitRows(sortedRegionals, searchRegional);
+  const limitedCongregations = limitRows(sortedCongregations, searchCongregation);
+  const limitedClasses = limitRows(sortedClasses, searchClass);
+  const limitNote = (shown: number, total: number, label: string) =>
+    shown < total ? <p className="text-xs text-muted-foreground">Mostrando {shown} de {total} {label}. Use a busca para filtrar.</p> : null;
+
   return (
     <div className="space-y-6">
+      {loadingData && <p className="text-sm text-muted-foreground">Carregando estrutura...</p>}
       {/* Igreja Independente (modo modular) */}
       <Card className="border-primary/30">
         <CardHeader>
