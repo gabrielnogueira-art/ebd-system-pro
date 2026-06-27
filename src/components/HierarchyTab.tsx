@@ -656,7 +656,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedMinistries.map((m) => (
+              {limitedMinistries.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>{m.name}</TableCell>
                   <TableCell>{m.city ?? "-"}</TableCell>
@@ -678,6 +678,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedMinistries.length, sortedMinistries.length, "ministérios")}
         </CardContent>
       </Card>
 
@@ -766,7 +767,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedHq.map((h) => (
+              {limitedHq.map((h) => (
                 <TableRow key={h.id}>
                   <TableCell>{h.name}</TableCell>
                   <TableCell>{h.city ?? "-"}</TableCell>
@@ -789,6 +790,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedHq.length, sortedHq.length, "sedes")}
         </CardContent>
       </Card>
 
@@ -869,7 +871,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedRegionals.map((r) => (
+              {limitedRegionals.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.name}</TableCell>
                   <TableCell>{hqName(r.headquarters_id)}</TableCell>
@@ -891,6 +893,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedRegionals.length, sortedRegionals.length, "regionais")}
         </CardContent>
       </Card>
 
@@ -1003,7 +1006,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedCongregations.map((c) => (
+              {limitedCongregations.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>{c.name}</TableCell>
                   <TableCell>{hqName(c.headquarters_id)}</TableCell>
@@ -1037,6 +1040,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedCongregations.length, sortedCongregations.length, "congregações")}
         </CardContent>
       </Card>
 
@@ -1064,7 +1068,7 @@ export const HierarchyTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedClasses.map((cl) => (
+              {limitedClasses.map((cl) => (
                 <TableRow key={cl.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -1096,6 +1100,7 @@ export const HierarchyTab = () => {
               ))}
             </TableBody>
           </Table>
+          {limitNote(limitedClasses.length, sortedClasses.length, "classes")}
         </CardContent>
       </Card>
 
