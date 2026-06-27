@@ -1049,21 +1049,9 @@ export const HierarchyTab = () => {
                   </TableCell>
                   <TableCell>{congregationName(cl.congregation_id)}</TableCell>
                   <TableCell>
-                    <Select
-                      value={cl.congregation_id ?? ""}
-                      onValueChange={(v) => updateClassCongregation(cl.id, v)}
-                    >
-                      <SelectTrigger className="w-[280px]">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {congregations.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name} ({hqName(c.headquarters_id)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Button variant="outline" size="sm" onClick={() => setEditingClass(cl)}>
+                      Editar vínculo
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
