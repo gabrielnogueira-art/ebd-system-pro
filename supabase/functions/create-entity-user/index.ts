@@ -14,15 +14,26 @@ type Role =
   | "professor_classe";
 
 interface Body {
+  action?: "create_user" | "create_independent_church";
+  name?: string;
+  city?: string | null;
   email: string;
   password: string;
   display_name?: string;
-  role: Role;
+  role?: Role;
   ministry_id?: string | null;
   headquarters_id?: string | null;
   regional_id?: string | null;
   congregation_id?: string | null;
   class_ids?: number[];
+}
+
+interface CallerRole {
+  role: string;
+  ministry_id: string | null;
+  headquarters_id: string | null;
+  regional_id: string | null;
+  congregation_id: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -47,8 +58,9 @@ Deno.serve(async (req) => {
     const callerId = userData.user.id;
 
     const body = (await req.json()) as Body;
-    const { email, password, display_name, role } = body;
-    if (!email || !password || !role) return json({ error: "Dados incompletos" }, 400);
+    const { email, password, display_name } = body;
+    const role = body.role;
+    if (!email || !password) return json({ error: "E-mail e senha são obrigatórios" }, 400);
     if (password.length < 6) return json({ error: "Senha mínima de 6 caracteres" }, 400);
 
     // Permissões: master sempre pode. Demais conforme o escopo.
@@ -56,8 +68,81 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role, ministry_id, headquarters_id, regional_id, congregation_id")
       .eq("user_id", callerId);
-    const callerRoles = (rolesData ?? []) as any[];
+    const callerRoles = (rolesData ?? []) as CallerRole[];
     const isMaster = callerRoles.some((r) => r.role === "master");
+
+    if ((body.action ?? "create_user") === "create_independent_church") {
+      if (!isMaster) return json({ error: "Apenas Master pode criar uma igreja independente" }, 403);
+      const name = body.name?.trim();
+      if (!name) return json({ error: "Informe o nome da igreja" }, 400);
+      const city = body.city?.trim() || null;
+
+      let ministryId: string | null = null;
+      let headquartersId: string | null = null;
+      let congregationId: string | null = null;
+      let authUserId: string | null = null;
+
+      try {
+        const { data: ministry, error: mErr } = await admin
+          .from("ministries")
+          .insert({ name, city })
+          .select("id")
+          .single();
+        if (mErr || !ministry) throw new Error(mErr?.message ?? "Ministério não retornado");
+        ministryId = (ministry as { id: string }).id;
+
+        const { data: hq, error: hErr } = await admin
+          .from("headquarters")
+          .insert({ name, city, ministry_id: ministryId })
+          .select("id")
+          .single();
+        if (hErr || !hq) throw new Error(hErr?.message ?? "Sede não retornada");
+        headquartersId = (hq as { id: string }).id;
+
+        const { data: congregation, error: cErr } = await admin
+          .from("congregations")
+          .insert({ name, headquarters_id: headquartersId, regional_id: null, is_headquarters: true })
+          .select("id")
+          .single();
+        if (cErr || !congregation) throw new Error(cErr?.message ?? "Congregação não retornada");
+        congregationId = (congregation as { id: string }).id;
+
+        const { data: created, error: createErr } = await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { display_name: display_name ?? name },
+        });
+        if (createErr || !created.user) throw new Error(createErr?.message ?? "Falha ao criar usuário");
+        authUserId = created.user.id;
+
+        await admin
+          .from("pending_users")
+          .update({ status: "approved", decided_by: callerId, decided_at: new Date().toISOString() })
+          .eq("user_id", authUserId);
+
+        const { error: roleErr } = await admin.from("user_roles").insert({
+          user_id: authUserId,
+          role: "secretario_ebd",
+          ministry_id: null,
+          headquarters_id: headquartersId,
+          regional_id: null,
+          congregation_id: congregationId,
+        });
+        if (roleErr) throw new Error(`Falha ao atribuir papel: ${roleErr.message}`);
+
+        return json({ ok: true, ministry_id: ministryId, headquarters_id: headquartersId, congregation_id: congregationId, user_id: authUserId }, 200);
+      } catch (e: any) {
+        if (authUserId) await admin.auth.admin.deleteUser(authUserId);
+        if (congregationId) await admin.from("congregations").delete().eq("id", congregationId);
+        if (headquartersId) await admin.from("headquarters").delete().eq("id", headquartersId);
+        if (ministryId) await admin.from("ministries").delete().eq("id", ministryId);
+        console.error("[create_independent_church] rollback after error:", e?.message ?? e);
+        return json({ error: e?.message ?? "Falha ao criar igreja independente" }, 400);
+      }
+    }
+
+    if (!role) return json({ error: "Informe o papel do usuário" }, 400);
 
     const hasMinistry = (mid: string) =>
       callerRoles.some((r) => r.role === "igreja_mae" && r.ministry_id === mid);
@@ -88,6 +173,10 @@ Deno.serve(async (req) => {
             .eq("id", targetHq)
             .maybeSingle();
           allowed = (hq && hasMinistry((hq as any).ministry_id)) || hasHq(targetHq);
+        }
+        // Admin regional pode criar login de congregação dentro da própria regional.
+        if (!allowed && role === "secretario_ebd" && targetRegional) {
+          allowed = hasRegional(targetRegional);
         }
       } else if (role === "professor_classe") {
         // Permitido se o caller tem escopo sobre TODAS as classes informadas

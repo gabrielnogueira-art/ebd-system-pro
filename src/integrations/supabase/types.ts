@@ -517,6 +517,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_admin_dashboard_summary: {
+        Args: { _class_ids?: number[]; _today?: string }
+        Returns: Json
+      }
       get_user_congregation: { Args: { _user_id: string }; Returns: string }
       get_user_headquarters: { Args: { _user_id: string }; Returns: string }
       get_user_ministry: { Args: { _user_id: string }; Returns: string }
