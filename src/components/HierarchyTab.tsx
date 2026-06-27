@@ -68,6 +68,7 @@ export const HierarchyTab = () => {
     password: "",
   });
   const [creatingIndep, setCreatingIndep] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   const addIndependentChurch = async () => {
     const name = newIndep.name.trim();
@@ -81,59 +82,15 @@ export const HierarchyTab = () => {
     setCreatingIndep(true);
     try {
       const city = newIndep.city.trim() || null;
-      // 1) Ministério
-      const { data: min, error: mErr } = await db
-        .from("ministries")
-        .insert({ name, city })
-        .select()
-        .single();
-      if (mErr || !min) { handleError(mErr ?? { message: "Ministério não retornado" }, "Falha ao criar ministério"); return; }
-      // 2) Sede
-      const { data: hq, error: hErr } = await db
-        .from("headquarters")
-        .insert({ name, city, ministry_id: min.id })
-        .select()
-        .single();
-      if (hErr || !hq) {
-        await db.from("ministries").delete().eq("id", min.id);
-        handleError(hErr ?? { message: "Sede não retornada" }, "Falha ao criar sede");
-        return;
-      }
-      // 3) Congregação (marcada como sede para indicar entidade única)
-      const { data: cong, error: cErr } = await db
-        .from("congregations")
-        .insert({
-          name,
-          headquarters_id: hq.id,
-          regional_id: null,
-          is_headquarters: true,
-        })
-        .select()
-        .single();
-      if (cErr || !cong) {
-        await db.from("headquarters").delete().eq("id", hq.id);
-        await db.from("ministries").delete().eq("id", min.id);
-        handleError(cErr ?? { message: "Congregação não retornada" }, "Falha ao criar congregação");
-        return;
-      }
-      // 4) Login secretário vinculado à congregação
-      const ok2 = await createEntityUser({
+      const created = await createEntityUser({
+        action: "create_independent_church",
+        name,
+        city,
         email: newIndep.email.trim(),
         password: newIndep.password,
         display_name: name,
-        role: "secretario_ebd",
-        headquarters_id: hq.id,
-        regional_id: null,
-        congregation_id: cong.id,
       });
-      if (!ok2) {
-        // rollback estrutural
-        await db.from("congregations").delete().eq("id", cong.id);
-        await db.from("headquarters").delete().eq("id", hq.id);
-        await db.from("ministries").delete().eq("id", min.id);
-        await load();
-        return;
-      }
+      if (!created) return;
       setNewIndep({ name: "", city: "", email: "", password: "" });
       ok("Igreja independente criada");
       load();
@@ -146,10 +103,13 @@ export const HierarchyTab = () => {
   };
 
   const createEntityUser = async (payload: {
+    action?: "create_user" | "create_independent_church";
+    name?: string;
+    city?: string | null;
     email: string;
     password: string;
     display_name?: string;
-    role: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
+    role?: "igreja_mae" | "igreja_sede" | "admin_regional" | "secretario_ebd" | "professor_classe";
     ministry_id?: string | null;
     headquarters_id?: string | null;
     regional_id?: string | null;
@@ -160,7 +120,7 @@ export const HierarchyTab = () => {
     let error: any = null;
     try {
       const timeoutPromise = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error("Tempo esgotado ao chamar create-entity-user (30s)")), 30000)
+        setTimeout(() => rej(new Error("Tempo esgotado ao criar usuário/igreja (30s)")), 30000)
       );
       const invokePromise = supabase.functions.invoke("create-entity-user", { body: payload });
       const res: any = await Promise.race([invokePromise, timeoutPromise]);
