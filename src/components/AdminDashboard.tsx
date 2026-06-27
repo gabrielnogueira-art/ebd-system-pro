@@ -88,7 +88,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
   }, [classIds, scope.classes]);
   const loadSeq = useRef(0);
   const initialLoadDone = useRef(false);
-  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimeRefreshTimer = useRef<number | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalStudents: 0,
