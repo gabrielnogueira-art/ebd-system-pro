@@ -521,6 +521,15 @@ export type Database = {
         Args: { _class_ids?: number[]; _today?: string }
         Returns: Json
       }
+      get_admin_dashboard_trends: {
+        Args: {
+          _class_ids?: number[]
+          _end_date?: string
+          _selected_date?: string
+          _start_date?: string
+        }
+        Returns: Json
+      }
       get_user_congregation: { Args: { _user_id: string }; Returns: string }
       get_user_headquarters: { Args: { _user_id: string }; Returns: string }
       get_user_ministry: { Args: { _user_id: string }; Returns: string }
