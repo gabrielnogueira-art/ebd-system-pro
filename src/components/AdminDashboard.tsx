@@ -247,149 +247,21 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
         setAvailableDates([]);
         return;
       }
-
-      let regQ = supabase
-        .from("registrations")
-        .select("registration_date, total_present, visitors, offering_cash, offering_pix, class_id, bibles, magazines")
-        .gte("registration_date", startDate.toISOString())
-        .lte("registration_date", endDate.toISOString());
-      if (classIds !== null) regQ = regQ.in("class_id", classIds);
-      let stuQ = supabase.from("students").select("id, class_id").eq("active", true);
-      if (classIds !== null) stuQ = stuQ.in("class_id", classIds);
-      const [{ data: registrations }, { data: students }] = await Promise.all([regQ, stuQ]);
-      const classes = visibleClasses;
-      
-      if (registrations && classes) {
-        // Processar dados mensais
-        const monthlyData: { [key: string]: QuarterlyData } = {};
-        const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-        
-        // Processar dados diários para a aba financeira
-        const dailyData: { [key: string]: { day: string; offerings: number } } = {};
-        
-        registrations.forEach(reg => {
-          const date = new Date(reg.registration_date);
-          const monthKey = monthNames[date.getUTCMonth()];
-          const dayKey = date.toISOString().split('T')[0];
-          const dayLabel = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-          
-          // Dados mensais
-          if (!monthlyData[monthKey]) {
-            monthlyData[monthKey] = { month: monthKey, registrations: 0, presence: 0, offerings: 0 };
-          }
-          monthlyData[monthKey].registrations++;
-          monthlyData[monthKey].presence += (reg.total_present || 0) + (reg.visitors || 0);
-          monthlyData[monthKey].offerings += parseFloat(String(reg.offering_cash || 0)) + parseFloat(String(reg.offering_pix || 0));
-          
-          // Dados diários
-          if (!dailyData[dayKey]) {
-            dailyData[dayKey] = { day: dayLabel, offerings: 0 };
-          }
-          dailyData[dayKey].offerings += parseFloat(String(reg.offering_cash || 0)) + parseFloat(String(reg.offering_pix || 0));
-        });
-        
-        // Usar dados diários se existirem, caso contrário usar mensais
-        const dataToDisplay = Object.keys(dailyData).length > 0 
-          ? Object.values(dailyData).sort((a, b) => {
-              const [dayA, monthA] = a.day.split('/');
-              const [dayB, monthB] = b.day.split('/');
-              return new Date(`2025-${monthA}-${dayA}`).getTime() - new Date(`2025-${monthB}-${dayB}`).getTime();
-            })
-          : Object.values(monthlyData);
-        
-        setQuarterlyData(dataToDisplay as any);
-        
-        // Processar dados de frequência por domingo do trimestre
-        const sundayData: { [key: string]: { dateStr: string; present: number } } = {};
-        registrations.forEach(reg => {
-          const dateStr = reg.registration_date.substring(0, 10); // YYYY-MM-DD
-          if (!sundayData[dateStr]) {
-            sundayData[dateStr] = { dateStr, present: 0 };
-          }
-          sundayData[dateStr].present += reg.total_present || 0;
-        });
-
-        const totalEnrolled = students?.length || 1;
-        const attendanceByWeek = Object.values(sundayData)
-          .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
-          .map((item) => {
-            const [year, month, day] = item.dateStr.split('-');
-            return {
-              dayOfWeek: `${day}/${month}`,
-              attendance: Math.round((item.present / totalEnrolled) * 100)
-            };
-          });
-        
-        setAttendanceData(attendanceByWeek.length > 0 ? attendanceByWeek : [{ dayOfWeek: "Sem dados", attendance: 0 }]);
-        
-        // Processar dados por classe
-        const classStats: { [key: number]: { present: number; count: number; bibles: number; magazines: number } } = {};
-        
-        // Filtrar registros por data se selecionada
-        const filteredRegistrations = selectedDate && selectedDate !== "all"
-          ? registrations.filter(r => r.registration_date.substring(0, 10) === selectedDate)
-          : registrations;
-        
-        // Contar presentes, bíblias e revistas por classe
-        filteredRegistrations.forEach(reg => {
-          if (reg.class_id) {
-            if (!classStats[reg.class_id]) classStats[reg.class_id] = { present: 0, count: 0, bibles: 0, magazines: 0 };
-            classStats[reg.class_id].present += reg.total_present || 0;
-            classStats[reg.class_id].bibles += reg.bibles || 0;
-            classStats[reg.class_id].magazines += reg.magazines || 0;
-            classStats[reg.class_id].count++;
-          }
-        });
-        
-        // Contar matriculados por classe
-        const enrolledByClass: { [key: number]: number } = {};
-        students?.forEach(s => {
-          if (s.class_id) {
-            enrolledByClass[s.class_id] = (enrolledByClass[s.class_id] || 0) + 1;
-          }
-        });
-        
-        // Calcular média ou total dependendo se uma data está selecionada
-        const classArray: ClassData[] = classes.map(cls => {
-          const stat = classStats[cls.id];
-          const totalPresent = stat?.present || 0;
-          const totalBibles = stat?.bibles || 0;
-          const totalMagazines = stat?.magazines || 0;
-          const count = stat?.count || 1;
-          const enrolled = enrolledByClass[cls.id] || 0;
-          const avgPresent = selectedDate && selectedDate !== "all" ? totalPresent : Math.round(totalPresent / count);
-          
-          const presenceRate = enrolled > 0 ? Math.round((avgPresent / enrolled) * 100 * 10) / 10 : 0;
-          const biblesRate = totalPresent > 0 ? Math.round((totalBibles / totalPresent) * 100 * 10) / 10 : 0;
-          const magazinesRate = totalPresent > 0 ? Math.round((totalMagazines / totalPresent) * 100 * 10) / 10 : 0;
-          
-          return {
-            className: cls.name.split('(')[0].trim(),
-            enrolled,
-            present: avgPresent,
-            percentage: presenceRate,
-            presenceRate,
-            biblesRate,
-            magazinesRate,
-            totalBibles,
-            totalMagazines,
-            totalPresent,
-          };
-        }).sort((a, b) => {
-          const numA = parseInt(a.className.match(/\d+/)?.[0] || '0');
-          const numB = parseInt(b.className.match(/\d+/)?.[0] || '0');
-          return numA - numB;
-        });
-        
-        setClassData(classArray);
-        
-        // Coletar datas disponíveis (domingos únicos dos registros)
-        const uniqueSundayDates = registrations
-          .map(r => r.registration_date.substring(0, 10))
-          .filter((v, i, a) => a.indexOf(v) === i)
-          .sort();
-        setAvailableDates(uniqueSundayDates);
-      }
+      const { data, error } = await (supabase as any).rpc("get_admin_dashboard_trends", {
+        _class_ids: classIds,
+        _start_date: startDate.toISOString(),
+        _end_date: endDate.toISOString(),
+        _selected_date: selectedDate && selectedDate !== "all" ? selectedDate : null,
+      });
+      if (error) throw error;
+      setQuarterlyData((data?.quarterlyData ?? []) as QuarterlyData[]);
+      setAttendanceData((data?.attendanceData?.length ? data.attendanceData : [{ dayOfWeek: "Sem dados", attendance: 0 }]) as AttendanceData[]);
+      setClassData(((data?.classData ?? []) as ClassData[]).sort((a, b) => {
+        const numA = parseInt(a.className.match(/\d+/)?.[0] || '0');
+        const numB = parseInt(b.className.match(/\d+/)?.[0] || '0');
+        return numA - numB;
+      }));
+      setAvailableDates((data?.availableDates ?? []) as string[]);
     } catch (error) {
       console.error("Error fetching quarterly data:", error);
     }
