@@ -32,6 +32,7 @@ interface Body {
   regional_id?: string | null;
   congregation_id?: string | null;
   class_ids?: number[];
+  is_headquarters?: boolean;
 }
 
 interface CallerRole {
@@ -169,7 +170,7 @@ Deno.serve(async (req) => {
               name,
               headquarters_id: targetHq,
               regional_id: targetRegional,
-              is_headquarters: !!body.congregation_id,
+              is_headquarters: !!body.is_headquarters,
             })
             .select("id")
             .single();
