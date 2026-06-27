@@ -570,7 +570,9 @@ export const HierarchyTab = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={addMinistry} className="w-full">Adicionar</Button>
+              <Button onClick={addMinistry} disabled={creatingMinistry} className="w-full">
+                {creatingMinistry ? "Criando..." : "Adicionar"}
+              </Button>
             </div>
           </div>
           <div className="grid gap-2 md:grid-cols-2 pt-2">
@@ -680,7 +682,9 @@ export const HierarchyTab = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={addHq} className="w-full">Adicionar</Button>
+              <Button onClick={addHq} disabled={creatingHq} className="w-full">
+                {creatingHq ? "Criando..." : "Adicionar"}
+              </Button>
             </div>
           </div>
           <div className="grid gap-2 md:grid-cols-2 pt-2">
@@ -785,7 +789,9 @@ export const HierarchyTab = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={addRegional} className="w-full">Adicionar</Button>
+              <Button onClick={addRegional} disabled={creatingRegional} className="w-full">
+                {creatingRegional ? "Criando..." : "Adicionar"}
+              </Button>
             </div>
           </div>
           <div className="grid gap-2 md:grid-cols-2 pt-2">
@@ -918,7 +924,9 @@ export const HierarchyTab = () => {
               </label>
             </div>
             <div className="flex items-end">
-              <Button onClick={addCongregation} className="w-full">Adicionar</Button>
+              <Button onClick={addCongregation} disabled={creatingCongregation} className="w-full">
+                {creatingCongregation ? "Criando..." : "Adicionar"}
+              </Button>
             </div>
           </div>
           <div className="grid gap-2 md:grid-cols-2 pt-2">
