@@ -231,18 +231,25 @@ export const HierarchyTab = () => {
   };
 
   const load = async () => {
-    const [m, h, r, c, cl] = await Promise.all([
-      db.from("ministries").select("*").order("name"),
-      db.from("headquarters").select("*").order("name"),
-      db.from("regionals").select("*").order("name"),
-      db.from("congregations").select("*").order("name"),
-      db.from("classes").select("id, name, congregation_id").order("name"),
-    ]);
-    setMinistries(m.data ?? []);
-    setHeadquarters(h.data ?? []);
-    setRegionals(r.data ?? []);
-    setCongregations(c.data ?? []);
-    setClasses(cl.data ?? []);
+    setLoadingData(true);
+    try {
+      const [m, h, r, c, cl] = await Promise.all([
+        db.from("ministries").select("id,name,city").order("name"),
+        db.from("headquarters").select("id,name,city,ministry_id").order("name"),
+        db.from("regionals").select("id,name,headquarters_id").order("name"),
+        db.from("congregations").select("id,name,is_headquarters,headquarters_id,regional_id").order("name"),
+        db.from("classes").select("id, name, congregation_id").order("name"),
+      ]);
+      const err = m.error || h.error || r.error || c.error || cl.error;
+      if (err) handleError(err, "Falha ao carregar estrutura");
+      setMinistries(m.data ?? []);
+      setHeadquarters(h.data ?? []);
+      setRegionals(r.data ?? []);
+      setCongregations(c.data ?? []);
+      setClasses(cl.data ?? []);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   useEffect(() => {
