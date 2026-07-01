@@ -1,57 +1,63 @@
-# Painel do Professor com Sidebar
+## Diagnóstico
 
-Hoje a página `/professor` é uma tela única com seletor de classe + formulário de chamada. Vamos transformá-la em um painel completo, com barra lateral colapsável, semelhante em estrutura ao painel do ADM, mas com escopo restrito à(s) classe(s) do professor.
+O console mostra o erro real que quebra tudo (inclusive "Igreja Independente"):
 
-## Estrutura visual
-
-```text
-┌───────────────────────────────────────────────┐
-│ ☰  Painel do Professor       [Classe ▼] Sair │
-├──────────┬────────────────────────────────────┤
-│ Sidebar  │                                    │
-│  • Chamada│   Conteúdo da seção ativa          │
-│  • Alunos │                                    │
-│  • Painel │                                    │
-└──────────┴────────────────────────────────────┘
+```
+permission denied for function is_master
 ```
 
-- Sidebar usa o componente `shadcn/ui sidebar` com `collapsible="icon"` (recolhe para ícones, expande no clique do botão ☰ no header).
-- Seletor de classe permanece no header (enquanto não existe vínculo único professor→classe). Ao trocar a classe, todas as seções recarregam com o novo `classId`.
+A função `public.is_master(uuid)` foi criada como `SECURITY DEFINER`, mas nunca recebeu `GRANT EXECUTE` para o role `authenticated`. Como praticamente todas as políticas RLS de escrita (ministries, headquarters, congregations, regionals, user_roles) chamam `is_master(auth.uid())`, qualquer INSERT/SELECT feito pelo usuário logado falha com 42501 — inclusive:
 
-## Seções do painel
+- O dashboard do Master (erro visível no console).
+- A Edge Function `create-entity-user` quando executa via service_role até funciona, mas o passo seguinte no cliente (recarregar hierarquia) falha, e em várias RLS a checagem `is_master` roda no contexto do JWT do caller e retorna "permission denied", abortando a transação antes do INSERT.
 
-1. **Chamada (Registro)** — reusa o atual `ProfessorAttendanceTab` (formulário de presença/ofertas já existente). Nenhuma mudança funcional.
+Além disso, outras funções auxiliares (`user_can_manage_*`, `user_can_see_congregation`, `has_role`, `teacher_has_class`, `get_admin_dashboard_*`) provavelmente estão no mesmo estado — só funcionam por sorte quando chamadas internamente por outra função definer.
 
-2. **Alunos da Classe** — CRUD restrito aos alunos da classe selecionada:
-   - Listar alunos (`students` filtrado por `class_id`).
-   - Adicionar, editar e desativar/reativar aluno.
-   - Campos: nome, telefone, data de nascimento, cargo, endereço.
-   - Reutilizar visualmente o padrão do `StudentsManagement` (usado pelo ADM), mas em uma versão simplificada que sempre recebe `classId` por prop — sem seletor de classe e sem mudar a classe do aluno.
+## Plano
 
-3. **Painel da Classe (Dashboard)** — visão macro restrita à classe:
-   - Cards de KPIs: matriculados ativos, média de presença, média de bíblias, média de revistas, ofertas acumuladas (dinheiro + PIX).
-   - Aniversariantes do mês.
-   - Atenção pastoral: alunos com 2+ faltas consecutivas nos últimos registros.
-   - Histórico recente: tabela com últimos registros da classe (data, presentes, bíblias, revistas, oferta total).
-   - Frequência por aluno: tabela com total e % de presença de cada aluno no período disponível.
-   - Tudo derivado de `registrations` + `students` filtrando por `class_id`.
+### 1. Migração SQL: conceder EXECUTE nas funções usadas por RLS/JWT
 
-## Segurança / dados
+Rodar um `GRANT EXECUTE ... TO authenticated` (e `service_role`) em todas as funções que aparecem em políticas ou são chamadas do cliente:
 
-Não muda nada no banco. As RLS atuais já restringem `students`, `registrations` e `classes` ao escopo do professor (via `teacher_classes`). Apenas garantimos que todas as queries das novas seções filtram por `class_id` selecionado.
+- `is_master(uuid)`
+- `has_role(uuid, app_role)`
+- `user_can_see_congregation(uuid, uuid)`
+- `user_can_manage_headquarters(uuid, uuid)`
+- `user_can_manage_regional(uuid, uuid)`
+- `user_can_manage_congregation_structure(uuid, uuid)`
+- `teacher_has_class(uuid, int)`
+- `get_user_ministry / headquarters / regional / congregation(uuid)`
+- `get_admin_dashboard_summary(...)` e `get_admin_dashboard_trends(...)`
+- `approve_user(...)` e `reject_user(...)`
 
-## Detalhes técnicos
+Como todas são `SECURITY DEFINER` com `search_path` fixo, dar EXECUTE é seguro.
 
-- Novos arquivos:
-  - `src/pages/Professor.tsx` — reescrita para usar `SidebarProvider` + layout shell + roteamento interno por estado (`section: "chamada" | "alunos" | "painel"`).
-  - `src/components/ProfessorSidebar.tsx` — sidebar com itens Chamada / Alunos / Painel da Classe (`NavLink`-like via estado).
-  - `src/components/ProfessorStudentsTab.tsx` — gerenciamento de alunos da classe (recebe `classId`).
-  - `src/components/ProfessorDashboardTab.tsx` — dashboard da classe (recebe `classId`).
-- Mantém `ProfessorAttendanceTab` como está.
-- Header fixo com `SidebarTrigger`, título, seletor de classe (quando houver mais de uma) e botão Sair.
-- Responsivo: em mobile o sidebar vira offcanvas; o seletor de classe colapsa abaixo do título.
+### 2. Verificar fluxo "Igreja Independente" após o fix
 
-## Itens fora do escopo desta etapa
+Com `is_master` executável, a Edge Function `create-entity-user` (action `create_independent_church`) deve concluir:
+1. cria `ministries` → `headquarters` → `congregations` (`is_headquarters: true`)
+2. cria auth user
+3. insere `user_roles` como `secretario_ebd` vinculado à congregação
 
-- Vincular automaticamente o professor a uma única classe e remover o seletor (será feito depois, conforme você indicou).
-- Exportação de relatórios em PDF na visão do professor (pode ser adicionado depois reusando o `ReportsTab` filtrado).
+Rodar teste com `supabase--curl_edge_functions` chamando `create-entity-user` com um payload de teste, e ler `supabase--edge_function_logs` se der erro. Se algum passo falhar por RLS residual, ajustar política ou usar `admin` (service_role) — mas o service_role bypassa RLS, então o único vetor de falha real é o `is_master` faltando permissão quando a Edge Function usa `userClient` para algo (não usa hoje — só para `getUser`), portanto o fix acima deve ser suficiente.
+
+### 3. Checklist de teste dos 5 níveis de login
+
+Depois do fix aplicado, testar login e navegação para cada um. Vou executar via browser (Playwright) contra `http://localhost:8080` e reportar o que cada usuário vê:
+
+| Login | Senha | Deve acessar |
+|---|---|---|
+| master@ebd.dev | Master@2026 | Estrutura completa, todas as sedes, todas as congregações, aba Aprovações |
+| admadureira@gmail.com | Admadureira@2026 | Ministério Madureira, todas as sedes/regionais/congregações abaixo |
+| admin_igreja_mae@teste.com | (senha seed) | Sua igreja mãe + descendentes |
+| admin_regional@teste.com | (senha seed) | Apenas sua regional |
+| admin_congregacao@teste.com | (senha seed) | Apenas dashboard da sua congregação |
+| professor_classe@teste.com | (senha seed) | Sidebar de professor: Chamada, Alunos, Painel |
+
+Para cada login capturar screenshot do painel inicial + tentar 1 ação de escrita (ex.: criar item um nível acima do escopo) para confirmar que a RLS bloqueia corretamente.
+
+### Detalhes técnicos
+
+- Passo 1 é 1 migração SQL só com `GRANT EXECUTE`. Nada de alterar corpo das funções nem RLS.
+- Passo 2 e 3 são verificação, sem código adicional. Se algum teste falhar, abro um segundo plano.
+- Não vou mexer em `AdminDashboard.tsx`, `HierarchyTab.tsx` nem em `create-entity-user` — o bug é no banco, não no cliente.
