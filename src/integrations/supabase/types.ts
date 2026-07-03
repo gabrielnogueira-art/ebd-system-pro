@@ -563,6 +563,18 @@ export type Database = {
         Args: { _congregation_id: string; _user_id: string }
         Returns: boolean
       }
+      user_can_see_headquarters: {
+        Args: { _headquarters_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_see_ministry: {
+        Args: { _ministry_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_see_regional: {
+        Args: { _regional_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
