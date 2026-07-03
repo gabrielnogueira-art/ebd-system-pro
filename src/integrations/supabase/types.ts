@@ -20,18 +20,21 @@ export type Database = {
           created_at: string
           id: number
           name: string
+          teacher_student_id: number | null
         }
         Insert: {
           congregation_id?: string | null
           created_at?: string
           id?: number
           name: string
+          teacher_student_id?: number | null
         }
         Update: {
           congregation_id?: string | null
           created_at?: string
           id?: number
           name?: string
+          teacher_student_id?: number | null
         }
         Relationships: [
           {
@@ -39,6 +42,13 @@ export type Database = {
             columns: ["congregation_id"]
             isOneToOne: false
             referencedRelation: "congregations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_teacher_student_id_fkey"
+            columns: ["teacher_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
