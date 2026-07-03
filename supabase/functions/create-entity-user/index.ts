@@ -300,17 +300,83 @@ Deno.serve(async (req) => {
     const hasCong = (cid: string) =>
       callerRoles.some((r) => r.role === "secretario_ebd" && r.congregation_id === cid);
 
-    const targetMinistry = body.ministry_id ?? null;
-    const targetHq = body.headquarters_id ?? null;
-    const targetRegional = body.regional_id ?? null;
-    const targetCong = body.congregation_id ?? null;
+    let targetMinistry = body.ministry_id ?? null;
+    let targetHq = body.headquarters_id ?? null;
+    let targetRegional = body.regional_id ?? null;
+    let targetCong = body.congregation_id ?? null;
+
+    if (role === "igreja_mae" && !targetMinistry) {
+      return json({ error: "Informe o ministério deste acesso" }, 400);
+    }
+
+    if (role === "igreja_sede") {
+      if (!targetHq) return json({ error: "Informe a igreja sede deste acesso" }, 400);
+      const { data: hq } = await admin
+        .from("headquarters")
+        .select("ministry_id")
+        .eq("id", targetHq)
+        .maybeSingle();
+      const hqMinistry = (hq as any)?.ministry_id as string | undefined;
+      if (!hqMinistry) return json({ error: "Igreja sede inválida" }, 400);
+      if (targetMinistry && targetMinistry !== hqMinistry) {
+        return json({ error: "A igreja sede não pertence ao ministério informado" }, 400);
+      }
+      targetMinistry = hqMinistry;
+    }
+
+    if (role === "admin_regional") {
+      if (!targetRegional) return json({ error: "Informe a regional deste acesso" }, 400);
+      const { data: regional } = await admin
+        .from("regionals")
+        .select("headquarters_id")
+        .eq("id", targetRegional)
+        .maybeSingle();
+      const regionalHq = (regional as any)?.headquarters_id as string | undefined;
+      if (!regionalHq) return json({ error: "Regional inválida" }, 400);
+      const { data: hq } = await admin
+        .from("headquarters")
+        .select("ministry_id")
+        .eq("id", regionalHq)
+        .maybeSingle();
+      const hqMinistry = (hq as any)?.ministry_id as string | undefined;
+      if (!hqMinistry) return json({ error: "Sede da regional inválida" }, 400);
+      if (targetHq && targetHq !== regionalHq) return json({ error: "A regional não pertence à sede informada" }, 400);
+      if (targetMinistry && targetMinistry !== hqMinistry) return json({ error: "A regional não pertence ao ministério informado" }, 400);
+      targetHq = regionalHq;
+      targetMinistry = hqMinistry;
+    }
+
+    if (role === "secretario_ebd") {
+      if (!targetCong) return json({ error: "Informe a congregação deste acesso" }, 400);
+      const { data: cong } = await admin
+        .from("congregations")
+        .select("headquarters_id, regional_id")
+        .eq("id", targetCong)
+        .maybeSingle();
+      const congHq = (cong as any)?.headquarters_id as string | undefined;
+      const congRegional = ((cong as any)?.regional_id as string | null | undefined) ?? null;
+      if (!congHq) return json({ error: "Congregação inválida" }, 400);
+      const { data: hq } = await admin
+        .from("headquarters")
+        .select("ministry_id")
+        .eq("id", congHq)
+        .maybeSingle();
+      const hqMinistry = (hq as any)?.ministry_id as string | undefined;
+      if (!hqMinistry) return json({ error: "Sede da congregação inválida" }, 400);
+      if (targetHq && targetHq !== congHq) return json({ error: "A congregação não pertence à sede informada" }, 400);
+      if (targetRegional && targetRegional !== congRegional) return json({ error: "A congregação não pertence à regional informada" }, 400);
+      if (targetMinistry && targetMinistry !== hqMinistry) return json({ error: "A congregação não pertence ao ministério informado" }, 400);
+      targetHq = congHq;
+      targetRegional = congRegional;
+      targetMinistry = hqMinistry;
+    }
 
     let allowed = isMaster;
     if (!allowed) {
       if (role === "igreja_mae") allowed = false; // só master
       else if (role === "igreja_sede") {
         // master ou igreja_mae do mesmo ministério
-        allowed = !!targetMinistry && hasMinistry(targetMinistry);
+        allowed = !!targetMinistry && !!targetHq && hasMinistry(targetMinistry);
       } else if (role === "admin_regional" || role === "secretario_ebd") {
         // master, igreja_mae do ministério da sede, ou igreja_sede da sede
         if (targetHq) {
