@@ -57,15 +57,6 @@ export const HierarchyTab = () => {
   const [creatingRegional, setCreatingRegional] = useState(false);
   const [creatingCongregation, setCreatingCongregation] = useState(false);
 
-  // Form criar professor
-  const [newTeacher, setNewTeacher] = useState({
-    email: "",
-    password: "",
-    display_name: "",
-    class_ids: [] as number[],
-  });
-  const [creatingTeacher, setCreatingTeacher] = useState(false);
-
   // Form criar Igreja Independente (modo modular: cria Ministério + Sede + Congregação juntos)
   const [newIndep, setNewIndep] = useState({
     name: "",
