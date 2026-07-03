@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, Check, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type Ministry = { id: string; name: string; city: string | null };
 type Headquarters = { id: string; name: string; city: string | null; ministry_id: string };
@@ -28,6 +29,7 @@ const LIST_LIMIT = 150;
 
 export const HierarchyTab = () => {
   const { toast } = useToast();
+  const userRole = useUserRole();
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [headquarters, setHeadquarters] = useState<Headquarters[]>([]);
   const [regionals, setRegionals] = useState<Regional[]>([]);
@@ -73,6 +75,31 @@ export const HierarchyTab = () => {
   });
   const [creatingIndep, setCreatingIndep] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+
+  const isMaster = userRole.role === "master";
+  const isMinistry = userRole.role === "igreja_mae";
+  const isHeadquarters = userRole.role === "igreja_sede";
+  const isRegional = userRole.role === "admin_regional";
+  const isCongregation = userRole.role === "secretario_ebd";
+
+  const canCreateIndependentChurch = isMaster;
+  const canViewMinistries = isMaster || isMinistry;
+  const canCreateMinistry = isMaster;
+  const canDeleteMinistry = isMaster;
+  const canEditMinistry = isMaster || isMinistry;
+  const canViewHeadquarters = isMaster || isMinistry || isHeadquarters;
+  const canCreateHeadquarters = isMaster || isMinistry;
+  const canDeleteHeadquarters = isMaster || isMinistry;
+  const canEditHeadquarters = isMaster || isMinistry || isHeadquarters;
+  const canViewRegionals = isMaster || isMinistry || isHeadquarters || isRegional;
+  const canCreateRegionals = isMaster || isMinistry || isHeadquarters;
+  const canDeleteRegionals = isMaster || isMinistry || isHeadquarters;
+  const canEditRegionals = isMaster || isMinistry || isHeadquarters || isRegional;
+  const canViewCongregations = isMaster || isMinistry || isHeadquarters || isRegional || isCongregation;
+  const canCreateCongregations = isMaster || isMinistry || isHeadquarters || isRegional;
+  const canDeleteCongregations = isMaster || isMinistry || isHeadquarters || isRegional;
+  const canEditCongregations = isMaster || isMinistry || isHeadquarters || isRegional || isCongregation;
+  const canViewClassLinks = isMaster || isMinistry || isHeadquarters || isRegional || isCongregation;
 
   const addIndependentChurch = async () => {
     const name = newIndep.name.trim();
@@ -496,8 +523,7 @@ export const HierarchyTab = () => {
   return (
     <div className="space-y-6">
       {loadingData && <p className="text-sm text-muted-foreground">Carregando estrutura...</p>}
-      {/* Igreja Independente (modo modular) */}
-      <Card className="border-primary/30">
+      {canCreateIndependentChurch && <Card className="border-primary/30">
         <CardHeader>
           <CardTitle>Igreja Independente</CardTitle>
           <CardDescription>
@@ -547,16 +573,15 @@ export const HierarchyTab = () => {
             {creatingIndep ? "Criando..." : "Cadastrar Igreja Independente"}
           </Button>
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Ministerios */}
-      <Card>
+      {canViewMinistries && <Card>
         <CardHeader>
           <CardTitle>Ministerios</CardTitle>
           <CardDescription>Topo da hierarquia organizacional</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-3">
+          {canCreateMinistry && <div className="grid gap-2 md:grid-cols-3">
             <div>
               <Label>Nome</Label>
               <Input
@@ -578,8 +603,8 @@ export const HierarchyTab = () => {
                 {creatingMinistry ? "Criando..." : "Adicionar"}
               </Button>
             </div>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 pt-2">
+          </div>}
+          {canCreateMinistry && <div className="grid gap-2 md:grid-cols-2 pt-2">
             <div>
               <Label>E-mail de acesso (opcional)</Label>
               <Input
@@ -601,7 +626,7 @@ export const HierarchyTab = () => {
             <p className="md:col-span-2 text-xs text-muted-foreground">
               Se preenchido, cria um login com perfil "Igreja Mãe" vinculado a este ministério.
             </p>
-          </div>
+          </div>}
           <div className="pt-4">
             <Input
               placeholder="Pesquisar mistério..."
@@ -615,7 +640,7 @@ export const HierarchyTab = () => {
               <TableRow>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'name')}>Nome <SortIcon table="ministries" column="name" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'city')}>Cidade <SortIcon table="ministries" column="city" /></TableHead>
-                <TableHead className="w-20">Acoes</TableHead>
+                <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -625,16 +650,16 @@ export const HierarchyTab = () => {
                   <TableCell>{m.city ?? "-"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditingMinistry(m)}>
+                      {canEditMinistry && <Button size="icon" variant="ghost" onClick={() => setEditingMinistry(m)}>
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
+                      </Button>}
+                      {canDeleteMinistry && <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => removeRow("ministries", m.id, m.name)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      </Button>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -643,16 +668,15 @@ export const HierarchyTab = () => {
           </Table>
           {limitNote(limitedMinistries.length, sortedMinistries.length, "ministérios")}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Igrejas Sede */}
-      <Card>
+      {canViewHeadquarters && <Card>
         <CardHeader>
           <CardTitle>Igrejas Sede</CardTitle>
           <CardDescription>Sede de cada ministerio</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-4">
+          {canCreateHeadquarters && <div className="grid gap-2 md:grid-cols-4">
             <div>
               <Label>Ministerio</Label>
               <Select
@@ -690,8 +714,8 @@ export const HierarchyTab = () => {
                 {creatingHq ? "Criando..." : "Adicionar"}
               </Button>
             </div>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 pt-2">
+          </div>}
+          {canCreateHeadquarters && <div className="grid gap-2 md:grid-cols-2 pt-2">
             <div>
               <Label>E-mail de acesso (opcional)</Label>
               <Input
@@ -713,7 +737,7 @@ export const HierarchyTab = () => {
             <p className="md:col-span-2 text-xs text-muted-foreground">
               Se preenchido, cria um login com perfil "Igreja Sede" vinculado a esta sede.
             </p>
-          </div>
+          </div>}
           <div className="pt-4">
             <Input
               placeholder="Pesquisar sede..."
@@ -728,7 +752,7 @@ export const HierarchyTab = () => {
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('headquarters', 'name')}>Nome <SortIcon table="headquarters" column="name" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('headquarters', 'city')}>Cidade <SortIcon table="headquarters" column="city" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('headquarters', 'ministry')}>Ministerio <SortIcon table="headquarters" column="ministry" /></TableHead>
-                <TableHead className="w-20">Acoes</TableHead>
+                <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -739,16 +763,16 @@ export const HierarchyTab = () => {
                   <TableCell>{ministryName(h.ministry_id)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditingHq(h)}>
+                      {canEditHeadquarters && <Button size="icon" variant="ghost" onClick={() => setEditingHq(h)}>
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
+                      </Button>}
+                      {canDeleteHeadquarters && <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => removeRow("headquarters", h.id, h.name)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      </Button>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -757,16 +781,15 @@ export const HierarchyTab = () => {
           </Table>
           {limitNote(limitedHq.length, sortedHq.length, "sedes")}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Regionais */}
-      <Card>
+      {canViewRegionals && <Card>
         <CardHeader>
           <CardTitle>Regionais</CardTitle>
           <CardDescription>Divisoes regionais de cada sede</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-3">
+          {canCreateRegionals && <div className="grid gap-2 md:grid-cols-3">
             <div>
               <Label>Igreja Sede</Label>
               <Select
@@ -797,8 +820,8 @@ export const HierarchyTab = () => {
                 {creatingRegional ? "Criando..." : "Adicionar"}
               </Button>
             </div>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 pt-2">
+          </div>}
+          {canCreateRegionals && <div className="grid gap-2 md:grid-cols-2 pt-2">
             <div>
               <Label>E-mail de acesso (opcional)</Label>
               <Input
@@ -820,7 +843,7 @@ export const HierarchyTab = () => {
             <p className="md:col-span-2 text-xs text-muted-foreground">
               Se preenchido, cria um login com perfil "Admin Regional" vinculado a esta regional.
             </p>
-          </div>
+          </div>}
           <div className="pt-4">
             <Input
               placeholder="Pesquisar regional..."
@@ -834,7 +857,7 @@ export const HierarchyTab = () => {
               <TableRow>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'name')}>Nome <SortIcon table="regionals" column="name" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'hq')}>Igreja Sede <SortIcon table="regionals" column="hq" /></TableHead>
-                <TableHead className="w-20">Acoes</TableHead>
+                <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -844,16 +867,16 @@ export const HierarchyTab = () => {
                   <TableCell>{hqName(r.headquarters_id)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditingRegional(r)}>
+                      {canEditRegionals && <Button size="icon" variant="ghost" onClick={() => setEditingRegional(r)}>
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
+                      </Button>}
+                      {canDeleteRegionals && <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => removeRow("regionals", r.id, r.name)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      </Button>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -862,16 +885,15 @@ export const HierarchyTab = () => {
           </Table>
           {limitNote(limitedRegionals.length, sortedRegionals.length, "regionais")}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Congregacoes */}
-      <Card>
+      {canViewCongregations && <Card>
         <CardHeader>
           <CardTitle>Congregações</CardTitle>
           <CardDescription>Cada congregação pertence a uma sede e opcionalmente a uma regional</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-5">
+          {canCreateCongregations && <div className="grid gap-2 md:grid-cols-5">
             <div>
               <Label>Igreja Sede</Label>
               <Select
@@ -932,8 +954,8 @@ export const HierarchyTab = () => {
                 {creatingCongregation ? "Criando..." : "Adicionar"}
               </Button>
             </div>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 pt-2">
+          </div>}
+          {canCreateCongregations && <div className="grid gap-2 md:grid-cols-2 pt-2">
             <div>
               <Label>E-mail de acesso (opcional)</Label>
               <Input
@@ -955,7 +977,7 @@ export const HierarchyTab = () => {
             <p className="md:col-span-2 text-xs text-muted-foreground">
               Se preenchido, cria um login com perfil "Secretário EBD" vinculado a esta congregação.
             </p>
-          </div>
+          </div>}
           <div className="pt-4">
             <Input
               placeholder="Pesquisar congregação..."
@@ -971,7 +993,7 @@ export const HierarchyTab = () => {
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'hq')}>Sede <SortIcon table="congregations" column="hq" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'regional')}>Regional <SortIcon table="congregations" column="regional" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'tipo')}>Tipo <SortIcon table="congregations" column="tipo" /></TableHead>
-                <TableHead className="w-20">Acoes</TableHead>
+                <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -989,20 +1011,20 @@ export const HierarchyTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button
+                      {canEditCongregations && <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => setEditingCongregation(c)}
                       >
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
+                      </Button>}
+                      {canDeleteCongregations && <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => removeRow("congregations", c.id, c.name)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      </Button>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1011,10 +1033,9 @@ export const HierarchyTab = () => {
           </Table>
           {limitNote(limitedCongregations.length, sortedCongregations.length, "congregações")}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Classes -> Congregacao */}
-      <Card>
+      {canViewClassLinks && <Card>
         <CardHeader>
           <CardTitle>Vinculo de Classes</CardTitle>
           <CardDescription>Defina a qual congregacao cada classe pertence</CardDescription>
@@ -1059,109 +1080,7 @@ export const HierarchyTab = () => {
           </Table>
           {limitNote(limitedClasses.length, sortedClasses.length, "classes")}
         </CardContent>
-      </Card>
-
-      {/* Professores */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Professores</CardTitle>
-          <CardDescription>
-            Crie logins de professor e vincule a uma ou mais classes. O professor verá apenas os
-            alunos das classes selecionadas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div>
-              <Label>Nome do professor</Label>
-              <Input
-                placeholder="Ex.: João da Silva"
-                value={newTeacher.display_name}
-                onChange={(e) => setNewTeacher({ ...newTeacher, display_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>E-mail de acesso</Label>
-              <Input
-                type="email"
-                placeholder="professor@exemplo.com"
-                value={newTeacher.email}
-                onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Senha inicial (mín. 6)</Label>
-              <Input
-                type="text"
-                placeholder="Senha temporária"
-                value={newTeacher.password}
-                onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
-              />
-            </div>
-          </div>
-          <div>
-            <Label className="mb-2 block">Classes vinculadas</Label>
-            <div className="grid gap-2 md:grid-cols-3 max-h-64 overflow-y-auto border rounded-md p-3">
-              {classes.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhuma classe cadastrada.</p>
-              )}
-              {classes.map((cl) => {
-                const checked = newTeacher.class_ids.includes(cl.id);
-                return (
-                  <label key={cl.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        setNewTeacher((prev) => ({
-                          ...prev,
-                          class_ids: e.target.checked
-                            ? [...prev.class_ids, cl.id]
-                            : prev.class_ids.filter((id) => id !== cl.id),
-                        }));
-                      }}
-                    />
-                    <span>
-                      {cl.name}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        ({congregationName(cl.congregation_id)})
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              disabled={
-                creatingTeacher ||
-                !newTeacher.email.trim() ||
-                newTeacher.password.length < 6 ||
-                newTeacher.class_ids.length === 0
-              }
-              onClick={async () => {
-                setCreatingTeacher(true);
-                const ok2 = await createEntityUser({
-                  email: newTeacher.email.trim(),
-                  password: newTeacher.password,
-                  display_name: newTeacher.display_name.trim() || newTeacher.email.trim(),
-                  role: "professor_classe",
-                  class_ids: newTeacher.class_ids,
-                });
-                setCreatingTeacher(false);
-                if (ok2) {
-                  setNewTeacher({ email: "", password: "", display_name: "", class_ids: [] });
-                  ok("Professor criado e vinculado às classes");
-                }
-              }}
-            >
-              {creatingTeacher ? "Criando..." : "Criar professor"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      </Card>}
 
       <Dialog open={!!editingCongregation} onOpenChange={(open) => !open && setEditingCongregation(null)}>
         <DialogContent>

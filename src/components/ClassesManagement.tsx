@@ -15,9 +15,20 @@ interface ClassItem {
   id: number;
   name: string;
   congregation_id: string | null;
+  teacher_student_id: number | null;
   congregations?: {
     name: string;
   };
+}
+
+interface StudentOption {
+  id: number;
+  name: string;
+  class_id: number | null;
+  cargo: string | null;
+  classes?: {
+    name: string;
+  } | null;
 }
 
 interface Congregation {
@@ -28,6 +39,7 @@ interface Congregation {
 export const ClassesManagement = () => {
   const [classesList, setClassesList] = useState<ClassItem[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
+  const [students, setStudents] = useState<StudentOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [newClassName, setNewClassName] = useState("");
@@ -36,6 +48,7 @@ export const ClassesManagement = () => {
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
   const [editClassName, setEditClassName] = useState("");
   const [editClassCongregationId, setEditClassCongregationId] = useState("");
+  const [editTeacherStudentId, setEditTeacherStudentId] = useState("none");
   
   const [classToDelete, setClassToDelete] = useState<ClassItem | null>(null);
   const { toast } = useToast();
@@ -47,7 +60,7 @@ export const ClassesManagement = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [classesRes, congregationsRes] = await Promise.all([
+      const [classesRes, congregationsRes, studentsRes] = await Promise.all([
         supabase
           .from("classes")
           .select(`
@@ -60,14 +73,21 @@ export const ClassesManagement = () => {
         supabase
           .from("congregations")
           .select("id, name")
+          .order("name"),
+        supabase
+          .from("students")
+          .select("id, name, class_id, cargo, classes:class_id(name)")
+          .eq("active", true)
           .order("name")
       ]);
 
       if (classesRes.error) throw classesRes.error;
       if (congregationsRes.error) throw congregationsRes.error;
+      if (studentsRes.error) throw studentsRes.error;
 
       setClassesList(classesRes.data || []);
       setCongregations(congregationsRes.data || []);
+      setStudents((studentsRes.data as StudentOption[]) || []);
       
       // Auto-select congregation if there is only one available
       if (congregationsRes.data && congregationsRes.data.length === 1) {
@@ -131,6 +151,7 @@ export const ClassesManagement = () => {
     setEditingClass(cls);
     setEditClassName(cls.name);
     setEditClassCongregationId(cls.congregation_id || "");
+    setEditTeacherStudentId(cls.teacher_student_id ? String(cls.teacher_student_id) : "none");
   };
 
   const saveClassEdit = async () => {
@@ -149,6 +170,7 @@ export const ClassesManagement = () => {
         .update({
           name: editClassName.trim(),
           congregation_id: editClassCongregationId,
+          teacher_student_id: editTeacherStudentId === "none" ? null : Number(editTeacherStudentId),
         })
         .eq("id", editingClass.id);
 
@@ -167,6 +189,35 @@ export const ClassesManagement = () => {
         variant: "destructive",
         title: "Erro",
         description: "Erro ao atualizar classe.",
+      });
+    }
+  };
+
+  const teacherName = (studentId: number | null) => {
+    if (!studentId) return "-";
+    return students.find((student) => student.id === studentId)?.name || "-";
+  };
+
+  const updateClassTeacher = async (classId: number, studentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("classes")
+        .update({ teacher_student_id: studentId === "none" ? null : Number(studentId) })
+        .eq("id", classId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Professor responsável atualizado.",
+      });
+      fetchData();
+    } catch (error) {
+      console.error("Error updating class teacher:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao vincular professor à classe.",
       });
     }
   };
@@ -258,6 +309,7 @@ export const ClassesManagement = () => {
                   <TableRow>
                     <TableHead>Nome da Classe</TableHead>
                     <TableHead>Congregação</TableHead>
+                    <TableHead>Professor responsável</TableHead>
                     <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -266,6 +318,24 @@ export const ClassesManagement = () => {
                     <TableRow key={cls.id}>
                       <TableCell className="font-medium">{cls.name}</TableCell>
                       <TableCell>{cls.congregations?.name || "-"}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={cls.teacher_student_id ? String(cls.teacher_student_id) : "none"}
+                          onValueChange={(value) => updateClassTeacher(cls.id, value)}
+                        >
+                          <SelectTrigger className="min-w-[220px]">
+                            <SelectValue placeholder="Sem professor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem professor</SelectItem>
+                            {students.map((student) => (
+                              <SelectItem key={student.id} value={String(student.id)}>
+                                {student.name}{student.classes?.name ? ` — ${student.classes.name}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -288,7 +358,7 @@ export const ClassesManagement = () => {
                   ))}
                   {classesList.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
+                      <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
                         Nenhuma classe encontrada.
                       </TableCell>
                     </TableRow>
@@ -332,6 +402,25 @@ export const ClassesManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-class-teacher">Professor responsável</Label>
+              <Select value={editTeacherStudentId} onValueChange={setEditTeacherStudentId}>
+                <SelectTrigger id="edit-class-teacher">
+                  <SelectValue placeholder="Sem professor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem professor</SelectItem>
+                  {students.map((student) => (
+                    <SelectItem key={student.id} value={String(student.id)}>
+                      {student.name}{student.classes?.name ? ` — ${student.classes.name}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {editingClass?.teacher_student_id && (
+                <p className="text-xs text-muted-foreground">Atual: {teacherName(editingClass.teacher_student_id)}</p>
+              )}
             </div>
           </div>
           <DialogFooter>

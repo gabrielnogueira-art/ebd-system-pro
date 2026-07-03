@@ -34,7 +34,8 @@ const Admin = () => {
     userRole.role === "master" ||
     userRole.role === "igreja_mae" ||
     userRole.role === "igreja_sede" ||
-    userRole.role === "admin_regional";
+    userRole.role === "admin_regional" ||
+    userRole.role === "secretario_ebd";
 
   useEffect(() => {
     let active = true;
