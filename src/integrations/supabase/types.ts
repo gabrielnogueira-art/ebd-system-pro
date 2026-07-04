@@ -540,6 +540,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_class_logins: {
+        Args: { _class_ids: number[] }
+        Returns: {
+          class_id: number
+          email: string
+          user_id: string
+        }[]
+      }
       get_user_congregation: { Args: { _user_id: string }; Returns: string }
       get_user_headquarters: { Args: { _user_id: string }; Returns: string }
       get_user_ministry: { Args: { _user_id: string }; Returns: string }
