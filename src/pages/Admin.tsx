@@ -19,6 +19,8 @@ import { MasterApprovalsTab } from "@/components/MasterApprovalsTab";
 import { useUserRole } from "@/hooks/useUserRole";
 import { BrandingTab } from "@/components/BrandingTab";
 import { BrandingHeader } from "@/components/BrandingHeader";
+import { ScopeProvider } from "@/context/ScopeContext";
+import { ScopeGate } from "@/components/ScopeGate";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -152,14 +154,26 @@ const Admin = () => {
               isSede ? (
                 <SedeViewSwitcher key={`sede-${refreshKey}`} />
               ) : (
-                <AdminDashboard key={`dashboard-${refreshKey}`} />
+                <ScopeProvider key={`sp-dashboard-${refreshKey}`}>
+                  <ScopeGate><AdminDashboard key={`dashboard-${refreshKey}`} /></ScopeGate>
+                </ScopeProvider>
               )
             )}
-            {activeTab === "registrations" && <RegistrationsList key={`registrations-${refreshKey}`} />}
-            {activeTab === "confronto" && <ConfrontoTab key={`confronto-${refreshKey}`} />}
-            {activeTab === "classes" && <ClassesManagement key={`classes-${refreshKey}`} />}
-            {activeTab === "students" && <StudentsManagement key={`students-${refreshKey}`} />}
-            {activeTab === "reports" && <ReportsTab key={`reports-${refreshKey}`} />}
+            {activeTab === "registrations" && (
+              <ScopeProvider key={`sp-reg-${refreshKey}`}><ScopeGate><RegistrationsList key={`registrations-${refreshKey}`} /></ScopeGate></ScopeProvider>
+            )}
+            {activeTab === "confronto" && (
+              <ScopeProvider key={`sp-conf-${refreshKey}`}><ScopeGate><ConfrontoTab key={`confronto-${refreshKey}`} /></ScopeGate></ScopeProvider>
+            )}
+            {activeTab === "classes" && (
+              <ScopeProvider key={`sp-cls-${refreshKey}`}><ScopeGate><ClassesManagement key={`classes-${refreshKey}`} /></ScopeGate></ScopeProvider>
+            )}
+            {activeTab === "students" && (
+              <ScopeProvider key={`sp-stu-${refreshKey}`}><ScopeGate><StudentsManagement key={`students-${refreshKey}`} /></ScopeGate></ScopeProvider>
+            )}
+            {activeTab === "reports" && (
+              <ScopeProvider key={`sp-rep-${refreshKey}`}><ScopeGate><ReportsTab key={`reports-${refreshKey}`} /></ScopeGate></ScopeProvider>
+            )}
             {activeTab === "hierarchy" && canSeeStructure && <HierarchyTab key={`hierarchy-${refreshKey}`} />}
             {activeTab === "branding" && canEditBranding && <BrandingTab key={`branding-${refreshKey}`} />}
             {activeTab === "approvals" && isMaster && <MasterApprovalsTab key={`approvals-${refreshKey}`} />}
