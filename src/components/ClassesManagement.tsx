@@ -137,23 +137,17 @@ export const ClassesManagement = () => {
 
   const fetchClassLogins = async (classIds: number[]) => {
     if (classIds.length === 0) { setClassLoginMap({}); return; }
-    const { data: tc } = await supabase
-      .from("teacher_classes" as any)
-      .select("user_id, class_id")
-      .in("class_id", classIds);
-    const rows = (tc as any[]) || [];
-    if (rows.length === 0) { setClassLoginMap({}); return; }
-    const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
-    const { data: pu } = await supabase
-      .from("pending_users" as any)
-      .select("user_id, email")
-      .in("user_id", userIds);
-    const emailByUser = new Map<string, string>();
-    ((pu as any[]) || []).forEach((p) => emailByUser.set(p.user_id, p.email));
+    const { data, error } = await supabase.rpc("get_class_logins" as any, {
+      _class_ids: classIds,
+    });
+    if (error) {
+      console.error("get_class_logins error", error);
+      setClassLoginMap({});
+      return;
+    }
     const map: Record<number, { email: string; user_id: string }> = {};
-    rows.forEach((r) => {
-      const email = emailByUser.get(r.user_id);
-      if (email) map[r.class_id] = { email, user_id: r.user_id };
+    ((data as any[]) || []).forEach((r) => {
+      if (r.email) map[r.class_id] = { email: r.email, user_id: r.user_id };
     });
     setClassLoginMap(map);
   };
