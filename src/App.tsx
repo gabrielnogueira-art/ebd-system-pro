@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import ChoirView from "./pages/Choir"; // <-- 1. IMPORTAR A NOVA PÁGINA
 import Professor from "./pages/Professor";
 import Signup from "./pages/Signup";
+import OAuthConsent from "./pages/OAuthConsent";
 import { BrandingApplier } from "./components/BrandingApplier";
 
 function RootGate() {
@@ -68,6 +69,7 @@ function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/professor" element={<Professor />} />
         <Route path="/coristas" element={<ChoirView />} /> {/* <-- 2. ADICIONAR A NOVA ROTA */}
+        <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>

@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://fotzydevyvvklalgsomf.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "ebd-system-pro-mcp",
+      "version": "0.1.0",
+      "title": "EBD System Pro"
+    },
+    "tools": [
+      {
+        "name": "list_congregations",
+        "title": "List congregations",
+        "description": "List EBD congregations the signed-in user has access to. Returns id, name, headquarters_id, regional_id, is_headquarters.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Optional case-insensitive substring to match in the congregation name."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Max rows to return (default 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_classes",
+        "title": "List classes",
+        "description": "List EBD classes the signed-in user can see. Optionally filter by congregation_id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "congregation_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Filter classes by congregation UUID."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "Max rows to return (default 200)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_students",
+        "title": "List students",
+        "description": "List students the signed-in user can see. Filter by class_id and/or active status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "class_id": {
+              "type": "integer",
+              "description": "Filter students by class id."
+            },
+            "active_only": {
+              "type": "boolean",
+              "description": "Only return active students (default true)."
+            },
+            "search": {
+              "type": "string",
+              "description": "Optional case-insensitive substring to match in the student's name."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "Max rows to return (default 200)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_recent_registrations",
+        "title": "List recent EBD registrations",
+        "description": "List recent EBD class registrations (attendance + offerings) visible to the signed-in user. Optionally filter by class_id and date range (YYYY-MM-DD).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "class_id": {
+              "type": "integer",
+              "description": "Filter by class id."
+            },
+            "since": {
+              "type": "string",
+              "description": "Include registrations on or after this date (YYYY-MM-DD)."
+            },
+            "until": {
+              "type": "string",
+              "description": "Include registrations on or before this date (YYYY-MM-DD)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Max rows to return (default 50)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
