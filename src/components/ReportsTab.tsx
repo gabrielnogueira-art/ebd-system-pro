@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { CalendarDays, FileText, Download } from "lucide-react";
 import adCamposLogo from "@/assets/ad-campos-logo.png";
+import { useScopedFilter } from "@/hooks/useScopedFilter";
 
 interface ReportData {
   totalEnrolled: number;
@@ -241,12 +242,18 @@ export const ReportsTab = () => {
     : availableDates;
 
   useEffect(() => {
+    if (scoped.loading) return;
     fetchAvailableDates();
-  }, []);
+  }, [scoped.loading, scoped.classIds?.join(",")]);
 
   const fetchAvailableDates = async () => {
     try {
-      const { data } = await supabase.from("registrations").select("registration_date").order("registration_date", { ascending: false });
+      let q = supabase.from("registrations").select("registration_date").order("registration_date", { ascending: false });
+      if (scoped.classIds) {
+        if (scoped.classIds.length === 0) { setAvailableDates([]); return; }
+        q = q.in("class_id", scoped.classIds);
+      }
+      const { data } = await q;
       if (data) {
         const dates = [...new Set(data.map(r => new Date(r.registration_date).toISOString().split('T')[0]))];
         setAvailableDates(dates);
@@ -264,18 +271,25 @@ export const ReportsTab = () => {
       const startDate = new Date(date + 'T00:00:00.000Z');
       const endDate = new Date(date + 'T23:59:59.999Z');
       
-      const { data: registrations } = await supabase
+      let regQ = supabase
         .from("registrations")
         .select("*, classes(name)")
         .gte("registration_date", startDate.toISOString())
         .lte("registration_date", endDate.toISOString());
+      if (scoped.classIds) {
+        if (scoped.classIds.length === 0) { setNoData(true); return; }
+        regQ = regQ.in("class_id", scoped.classIds);
+      }
+      const { data: registrations } = await regQ;
 
       if (!registrations || registrations.length === 0) {
         setNoData(true);
         return;
       }
       
-      const { data: students } = await supabase.from("students").select("*, classes(id, name)").eq("active", true);
+      let stuQ = supabase.from("students").select("*, classes(id, name)").eq("active", true);
+      if (scoped.classIds) stuQ = stuQ.in("class_id", scoped.classIds);
+      const { data: students } = await stuQ;
       if (!students) {
         setNoData(true);
         return;
