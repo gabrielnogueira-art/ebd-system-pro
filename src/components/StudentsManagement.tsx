@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Search, Eye } from "lucide-react";
 import { StudentAttendanceDialog } from "./StudentAttendanceDialog";
+import { useScopedFilter } from "@/hooks/useScopedFilter";
 
 interface Student {
   id: number;
@@ -33,6 +34,7 @@ interface Class {
 }
 
 export const StudentsManagement = () => {
+  const scoped = useScopedFilter();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,26 +71,25 @@ export const StudentsManagement = () => {
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
 
   useEffect(() => {
+    if (scoped.loading) return;
     fetchData();
-  }, []);
+  }, [scoped.loading, scoped.classIds?.join(",")]);
 
   const fetchData = async () => {
     try {
-      const [studentsResult, classesResult] = await Promise.all([
-        supabase
-          .from("students")
-          .select(`
-            *,
-            classes:class_id (
-              name
-            )
-          `)
-          .order("name"),
-        supabase
-          .from("classes")
-          .select("*")
-          .order("id")
-      ]);
+      let sq = supabase
+        .from("students")
+        .select(`*, classes:class_id ( name )`)
+        .order("name");
+      let cq = supabase.from("classes").select("*").order("id");
+      if (scoped.classIds) {
+        if (scoped.classIds.length === 0) {
+          setStudents([]); setClasses([]); setIsLoading(false); return;
+        }
+        sq = sq.in("class_id", scoped.classIds);
+        cq = cq.in("id", scoped.classIds);
+      }
+      const [studentsResult, classesResult] = await Promise.all([sq, cq]);
 
       if (studentsResult.error) throw studentsResult.error;
       if (classesResult.error) throw classesResult.error;

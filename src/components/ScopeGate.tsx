@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, RotateCcw } from "lucide-react";
-import { useScope, AppliedScope } from "@/context/ScopeContext";
+import { useScope, AppliedScope, NO_REGIONAL } from "@/context/ScopeContext";
 import { useUserRole } from "@/hooks/useUserRole";
 
 interface Ministry { id: string; name: string }
@@ -103,9 +103,19 @@ export function ScopeGate({ children }: { children: ReactNode }) {
   const hqsForUI = mSel === ALL ? hqs : hqs.filter((h) => h.ministry_id === mSel);
   const regsForUI = hSel === ALL ? regs.filter((r) => hqsForUI.some((h) => h.id === r.headquarters_id))
     : regs.filter((r) => r.headquarters_id === hSel);
+  const hasSemRegional = congs.some((c) => {
+    if (c.regional_id !== null) return false;
+    if (hSel !== ALL && c.headquarters_id !== hSel) return false;
+    if (mSel !== ALL && !hqs.some((h) => h.id === c.headquarters_id && h.ministry_id === mSel)) return false;
+    return true;
+  });
   const congsForUI = congs.filter((c) => {
     if (hSel !== ALL && c.headquarters_id !== hSel) return false;
-    if (rSel !== ALL && c.regional_id !== rSel) return false;
+    if (rSel === NO_REGIONAL) {
+      if (c.regional_id !== null) return false;
+    } else if (rSel !== ALL) {
+      if (c.regional_id !== rSel) return false;
+    }
     if (mSel !== ALL && !hqs.some((h) => h.id === c.headquarters_id && h.ministry_id === mSel)) return false;
     return true;
   });
@@ -167,6 +177,9 @@ export function ScopeGate({ children }: { children: ReactNode }) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ALL}>Todas</SelectItem>
+                    {hasSemRegional && (
+                      <SelectItem value={NO_REGIONAL}>Sem Regional (Sede)</SelectItem>
+                    )}
                     {regsForUI.map((r) => (<SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
@@ -197,7 +210,8 @@ function describe(s: AppliedScope, ms: Ministry[], hs: Hq[], rs: Reg[], cs: Cong
   if (s.ministryId) parts.push(ms.find((x) => x.id === s.ministryId)?.name || "Ministério");
   else parts.push("Todos os ministérios");
   if (s.headquartersId) parts.push(hs.find((x) => x.id === s.headquartersId)?.name || "Sede");
-  if (s.regionalId) parts.push(rs.find((x) => x.id === s.regionalId)?.name || "Regional");
+  if (s.regionalId === NO_REGIONAL) parts.push("Sem Regional");
+  else if (s.regionalId) parts.push(rs.find((x) => x.id === s.regionalId)?.name || "Regional");
   if (s.congregationId) parts.push(cs.find((x) => x.id === s.congregationId)?.name || "Congregação");
   return parts.join(" › ");
 }

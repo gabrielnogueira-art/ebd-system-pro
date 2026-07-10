@@ -9,6 +9,7 @@ import { Eye, Download, Pencil, Trash2, X, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useScopedFilter } from "@/hooks/useScopedFilter";
 
 interface Registration {
   id: string;
@@ -29,6 +30,7 @@ interface Registration {
 }
 
 export const RegistrationsList = () => {
+  const scoped = useScopedFilter();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,9 +55,10 @@ export const RegistrationsList = () => {
   const [classes, setClasses] = useState<Array<{ id: number; name: string }>>([]);
 
   useEffect(() => {
+    if (scoped.loading) return;
     fetchRegistrations();
     fetchClasses();
-    
+
     // Setup Realtime subscription
     const channel = supabase
       .channel('registrations-list-changes')
@@ -75,7 +78,7 @@ export const RegistrationsList = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [scoped.loading, scoped.classIds?.join(",")]);
 
   useEffect(() => {
     applyFilters();
@@ -83,11 +86,15 @@ export const RegistrationsList = () => {
 
   const fetchClasses = async () => {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from("classes")
         .select("id, name")
         .order("name");
-
+      if (scoped.classIds) {
+        if (scoped.classIds.length === 0) { setClasses([]); return; }
+        q = q.in("id", scoped.classIds);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       setClasses(data || []);
     } catch (error) {
@@ -97,7 +104,7 @@ export const RegistrationsList = () => {
 
   const fetchRegistrations = async () => {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from("registrations")
         .select(`
           *,
@@ -106,7 +113,11 @@ export const RegistrationsList = () => {
           )
         `)
         .order("registration_date", { ascending: false });
-
+      if (scoped.classIds) {
+        if (scoped.classIds.length === 0) { setRegistrations([]); setIsLoading(false); return; }
+        q = q.in("class_id", scoped.classIds);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       setRegistrations(data || []);
     } catch (error) {

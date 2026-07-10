@@ -74,7 +74,8 @@ export const HierarchyTab = () => {
   const isCongregation = userRole.role === "secretario_ebd";
 
   const canCreateIndependentChurch = isMaster;
-  const canViewMinistries = isMaster || isMinistry;
+  // Igreja Mãe vê apenas Sedes para baixo; Ministérios só para Master.
+  const canViewMinistries = isMaster;
   const canCreateMinistry = isMaster;
   const canDeleteMinistry = isMaster;
   const canEditMinistry = isMaster || isMinistry;

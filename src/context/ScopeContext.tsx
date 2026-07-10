@@ -1,8 +1,12 @@
 import { createContext, useContext, useMemo, useState, ReactNode } from "react";
 
+/** Sentinela para "Sem Regional" (congregação vinculada apenas à Sede, sem regional). */
+export const NO_REGIONAL = "__none__";
+
 export interface AppliedScope {
   ministryId: string | null;      // null = all
   headquartersId: string | null;
+  /** null = todas; NO_REGIONAL = apenas congregações sem regional */
   regionalId: string | null;
   congregationId: string | null;
 }
