@@ -214,6 +214,7 @@ const ClassesReport = ({ reportData, selectedDate, reportTheme }: { reportData: 
 
 
 export const ReportsTab = () => {
+  const scoped = useScopedFilter();
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [reportData, setReportData] = useState<ReportData | null>(null);
