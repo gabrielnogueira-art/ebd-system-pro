@@ -374,7 +374,7 @@ export const HierarchyTab = () => {
       name,
       headquarters_id: headquartersId,
       regional_id: newCong.regional_id || null,
-      is_headquarters: newCong.is_headquarters,
+      is_headquarters: isHeadquarters ? false : newCong.is_headquarters,
       email: newCongAuth.email.trim() || undefined,
       password: newCongAuth.password || undefined,
       display_name: name,
@@ -939,7 +939,7 @@ export const HierarchyTab = () => {
                 onChange={(e) => setNewCong({ ...newCong, name: e.target.value })}
               />
             </div>
-            <div className="flex items-end gap-2">
+            {!isHeadquarters && <div className="flex items-end gap-2">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -948,7 +948,7 @@ export const HierarchyTab = () => {
                 />
                 E sede
               </label>
-            </div>
+            </div>}
             <div className="flex items-end">
               <Button onClick={addCongregation} disabled={creatingCongregation} className="w-full">
                 {creatingCongregation ? "Criando..." : "Adicionar"}
@@ -1135,7 +1135,7 @@ export const HierarchyTab = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2 pt-2">
+              {!isHeadquarters && <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
                   id="edit-is-hq"
@@ -1143,7 +1143,7 @@ export const HierarchyTab = () => {
                   onChange={(e) => setEditingCongregation({ ...editingCongregation, is_headquarters: e.target.checked })}
                 />
                 <Label htmlFor="edit-is-hq">É sede</Label>
-              </div>
+              </div>}
             </div>
           )}
           <DialogFooter>
