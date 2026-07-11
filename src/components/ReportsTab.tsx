@@ -9,6 +9,24 @@ import { CalendarDays, FileText, Download } from "lucide-react";
 import adCamposLogo from "@/assets/ad-campos-logo.png";
 import { useScopedFilter } from "@/hooks/useScopedFilter";
 
+const BRASILIA_UTC_OFFSET_HOURS = 3;
+
+const toBrasiliaDateKey = (dateString: string) => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(dateString));
+};
+
+const getBrasiliaUtcRange = (date: string) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day, BRASILIA_UTC_OFFSET_HOURS, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month - 1, day + 1, BRASILIA_UTC_OFFSET_HOURS, 0, 0, 0) - 1);
+  return { start, end };
+};
+
 interface ReportData {
   totalEnrolled: number;
   totalPresent: number;
@@ -245,19 +263,38 @@ export const ReportsTab = () => {
   useEffect(() => {
     if (scoped.loading) return;
     fetchAvailableDates();
+    if (selectedDate) fetchReportData(selectedDate);
+    else {
+      setReportData(null);
+      setNoData(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scoped.loading, scoped.classIds?.join(",")]);
 
   const fetchAvailableDates = async () => {
     try {
       let q = supabase.from("registrations").select("registration_date").order("registration_date", { ascending: false });
       if (scoped.classIds) {
-        if (scoped.classIds.length === 0) { setAvailableDates([]); return; }
+        if (scoped.classIds.length === 0) {
+          setAvailableDates([]);
+          setSelectedYear("");
+          setSelectedDate("");
+          setReportData(null);
+          setNoData(false);
+          return;
+        }
         q = q.in("class_id", scoped.classIds);
       }
-      const { data } = await q;
+      const { data, error } = await q;
+      if (error) throw error;
       if (data) {
-        const dates = [...new Set(data.map(r => new Date(r.registration_date).toISOString().split('T')[0]))];
+        const dates = [...new Set(data.map(r => toBrasiliaDateKey(r.registration_date)))];
         setAvailableDates(dates);
+        if (selectedDate && !dates.includes(selectedDate)) {
+          setSelectedDate("");
+          setReportData(null);
+          setNoData(false);
+        }
       }
     } catch (error) { console.error("Error fetching dates:", error); }
   };
@@ -268,9 +305,8 @@ export const ReportsTab = () => {
     setReportData(null);
     setNoData(false);
     try {
-      // Ajustar para buscar do início ao fim do dia na data selecionada
-      const startDate = new Date(date + 'T00:00:00.000Z');
-      const endDate = new Date(date + 'T23:59:59.999Z');
+      // Buscar do início ao fim do dia em Brasília (UTC-3), não em UTC puro.
+      const { start: startDate, end: endDate } = getBrasiliaUtcRange(date);
       
       let regQ = supabase
         .from("registrations")
@@ -281,7 +317,8 @@ export const ReportsTab = () => {
         if (scoped.classIds.length === 0) { setNoData(true); return; }
         regQ = regQ.in("class_id", scoped.classIds);
       }
-      const { data: registrations } = await regQ;
+      const { data: registrations, error: registrationsError } = await regQ;
+      if (registrationsError) throw registrationsError;
 
       if (!registrations || registrations.length === 0) {
         setNoData(true);
@@ -290,7 +327,8 @@ export const ReportsTab = () => {
       
       let stuQ = supabase.from("students").select("*, classes(id, name)").eq("active", true);
       if (scoped.classIds) stuQ = stuQ.in("class_id", scoped.classIds);
-      const { data: students } = await stuQ;
+      const { data: students, error: studentsError } = await stuQ;
+      if (studentsError) throw studentsError;
       if (!students) {
         setNoData(true);
         return;

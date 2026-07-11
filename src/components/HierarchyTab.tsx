@@ -79,10 +79,10 @@ export const HierarchyTab = () => {
   const canCreateMinistry = isMaster;
   const canDeleteMinistry = isMaster;
   const canEditMinistry = isMaster || isMinistry;
-  const canViewHeadquarters = isMaster || isMinistry || isHeadquarters;
+  const canViewHeadquarters = isMaster || isMinistry;
   const canCreateHeadquarters = isMaster || isMinistry;
   const canDeleteHeadquarters = isMaster || isMinistry;
-  const canEditHeadquarters = isMaster || isMinistry || isHeadquarters;
+  const canEditHeadquarters = isMaster || isMinistry;
   const canViewRegionals = isMaster || isMinistry || isHeadquarters || isRegional;
   const canCreateRegionals = isMaster || isMinistry || isHeadquarters;
   const canDeleteRegionals = isMaster || isMinistry || isHeadquarters;
@@ -92,6 +92,12 @@ export const HierarchyTab = () => {
   const canDeleteCongregations = isMaster || isMinistry || isHeadquarters || isRegional;
   const canEditCongregations = isMaster || isMinistry || isHeadquarters || isRegional || isCongregation;
   const canViewClassLinks = isMaster || isMinistry || isHeadquarters || isRegional || isCongregation;
+
+  useEffect(() => {
+    if (!userRole.headquartersId) return;
+    setNewRegional((prev) => prev.headquarters_id ? prev : { ...prev, headquarters_id: userRole.headquartersId! });
+    setNewCong((prev) => prev.headquarters_id ? prev : { ...prev, headquarters_id: userRole.headquartersId! });
+  }, [userRole.headquartersId]);
 
   const addIndependentChurch = async () => {
     const name = newIndep.name.trim();
@@ -340,12 +346,13 @@ export const HierarchyTab = () => {
 
   const addRegional = async () => {
     const name = newRegional.name.trim();
-    if (!name || !newRegional.headquarters_id) return handleError({ message: "Informe sede e nome da regional" }, "Dados incompletos");
+    const headquartersId = isHeadquarters ? userRole.headquartersId : newRegional.headquarters_id;
+    if (!name || !headquartersId) return handleError({ message: "Informe sede e nome da regional" }, "Dados incompletos");
     setCreatingRegional(true);
     const created = await createEntityUser({
       action: "create_regional",
       name,
-      headquarters_id: newRegional.headquarters_id,
+      headquarters_id: headquartersId,
       email: newRegionalAuth.email.trim() || undefined,
       password: newRegionalAuth.password || undefined,
       display_name: name,
@@ -359,14 +366,15 @@ export const HierarchyTab = () => {
 
   const addCongregation = async () => {
     const name = newCong.name.trim();
-    if (!name || !newCong.headquarters_id) return handleError({ message: "Informe sede e nome da congregação" }, "Dados incompletos");
+    const headquartersId = isHeadquarters ? userRole.headquartersId : newCong.headquarters_id;
+    if (!name || !headquartersId) return handleError({ message: "Informe sede e nome da congregação" }, "Dados incompletos");
     setCreatingCongregation(true);
     const created = await createEntityUser({
       action: "create_congregation",
       name,
-      headquarters_id: newCong.headquarters_id,
+      headquarters_id: headquartersId,
       regional_id: newCong.regional_id || null,
-      is_headquarters: newCong.is_headquarters,
+      is_headquarters: isHeadquarters ? false : newCong.is_headquarters,
       email: newCongAuth.email.trim() || undefined,
       password: newCongAuth.password || undefined,
       display_name: name,
@@ -782,7 +790,7 @@ export const HierarchyTab = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {canCreateRegionals && <div className="grid gap-2 md:grid-cols-3">
-            <div>
+            {!isHeadquarters && <div>
               <Label>Igreja Sede</Label>
               <Select
                 value={newRegional.headquarters_id}
@@ -799,7 +807,7 @@ export const HierarchyTab = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
             <div>
               <Label>Nome</Label>
               <Input
@@ -848,7 +856,7 @@ export const HierarchyTab = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'name')}>Nome <SortIcon table="regionals" column="name" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'hq')}>Igreja Sede <SortIcon table="regionals" column="hq" /></TableHead>
+                {!isHeadquarters && <TableHead className="cursor-pointer select-none" onClick={() => handleSort('regionals', 'hq')}>Igreja Sede <SortIcon table="regionals" column="hq" /></TableHead>}
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -856,7 +864,7 @@ export const HierarchyTab = () => {
               {limitedRegionals.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.name}</TableCell>
-                  <TableCell>{hqName(r.headquarters_id)}</TableCell>
+                  {!isHeadquarters && <TableCell>{hqName(r.headquarters_id)}</TableCell>}
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {canEditRegionals && <Button size="icon" variant="ghost" onClick={() => setEditingRegional(r)}>
@@ -886,7 +894,7 @@ export const HierarchyTab = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {canCreateCongregations && <div className="grid gap-2 md:grid-cols-5">
-            <div>
+            {!isHeadquarters && <div>
               <Label>Igreja Sede</Label>
               <Select
                 value={newCong.headquarters_id}
@@ -903,7 +911,7 @@ export const HierarchyTab = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
             <div>
               <Label>Regional</Label>
               <Select
@@ -931,7 +939,7 @@ export const HierarchyTab = () => {
                 onChange={(e) => setNewCong({ ...newCong, name: e.target.value })}
               />
             </div>
-            <div className="flex items-end gap-2">
+            {!isHeadquarters && <div className="flex items-end gap-2">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -940,7 +948,7 @@ export const HierarchyTab = () => {
                 />
                 E sede
               </label>
-            </div>
+            </div>}
             <div className="flex items-end">
               <Button onClick={addCongregation} disabled={creatingCongregation} className="w-full">
                 {creatingCongregation ? "Criando..." : "Adicionar"}
@@ -982,7 +990,7 @@ export const HierarchyTab = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'name')}>Nome <SortIcon table="congregations" column="name" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'hq')}>Sede <SortIcon table="congregations" column="hq" /></TableHead>
+                {!isHeadquarters && <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'hq')}>Sede <SortIcon table="congregations" column="hq" /></TableHead>}
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'regional')}>Regional <SortIcon table="congregations" column="regional" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('congregations', 'tipo')}>Tipo <SortIcon table="congregations" column="tipo" /></TableHead>
                 <TableHead className="w-20">Ações</TableHead>
@@ -992,7 +1000,7 @@ export const HierarchyTab = () => {
               {limitedCongregations.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>{c.name}</TableCell>
-                  <TableCell>{hqName(c.headquarters_id)}</TableCell>
+                  {!isHeadquarters && <TableCell>{hqName(c.headquarters_id)}</TableCell>}
                   <TableCell>{regionalName(c.regional_id)}</TableCell>
                   <TableCell>
                     {c.is_headquarters ? (
@@ -1088,7 +1096,7 @@ export const HierarchyTab = () => {
                   onChange={(e) => setEditingCongregation({ ...editingCongregation, name: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              {!isHeadquarters && <div className="space-y-2">
                 <Label>Igreja Sede</Label>
                 <Select
                   value={editingCongregation.headquarters_id}
@@ -1105,7 +1113,7 @@ export const HierarchyTab = () => {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </div>}
               <div className="space-y-2">
                 <Label>Regional (Opcional)</Label>
                 <Select
@@ -1127,7 +1135,7 @@ export const HierarchyTab = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2 pt-2">
+              {!isHeadquarters && <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
                   id="edit-is-hq"
@@ -1135,7 +1143,7 @@ export const HierarchyTab = () => {
                   onChange={(e) => setEditingCongregation({ ...editingCongregation, is_headquarters: e.target.checked })}
                 />
                 <Label htmlFor="edit-is-hq">É sede</Label>
-              </div>
+              </div>}
             </div>
           )}
           <DialogFooter>
@@ -1230,7 +1238,7 @@ export const HierarchyTab = () => {
                   onChange={(e) => setEditingRegional({ ...editingRegional, name: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              {!isHeadquarters && <div className="space-y-2">
                 <Label>Igreja Sede</Label>
                 <Select
                   value={editingRegional.headquarters_id}
@@ -1243,7 +1251,7 @@ export const HierarchyTab = () => {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </div>}
             </div>
           )}
           <DialogFooter>
@@ -1277,7 +1285,7 @@ export const HierarchyTab = () => {
                     <SelectItem value="none">Nenhuma</SelectItem>
                     {congregations.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.name} ({hqName(c.headquarters_id)})
+                        {isHeadquarters ? c.name : `${c.name} (${hqName(c.headquarters_id)})`}
                       </SelectItem>
                     ))}
                   </SelectContent>
