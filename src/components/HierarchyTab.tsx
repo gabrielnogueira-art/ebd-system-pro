@@ -1285,7 +1285,7 @@ export const HierarchyTab = () => {
                     <SelectItem value="none">Nenhuma</SelectItem>
                     {congregations.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.name} ({hqName(c.headquarters_id)})
+                        {isHeadquarters ? c.name : `${c.name} (${hqName(c.headquarters_id)})`}
                       </SelectItem>
                     ))}
                   </SelectContent>
