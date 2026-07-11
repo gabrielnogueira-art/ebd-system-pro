@@ -13,7 +13,7 @@ import { Pencil, Trash2, Check, ChevronsUpDown, KeyRound, UserPlus } from "lucid
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { useScope } from "@/context/ScopeContext";
+import { useScopedFilter } from "@/hooks/useScopedFilter";
 
 interface ClassItem {
   id: number;
@@ -41,7 +41,7 @@ interface Congregation {
 }
 
 export const ClassesManagement = () => {
-  const { applied } = useScope();
+  const scoped = useScopedFilter();
   const [classesList, setClassesList] = useState<ClassItem[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
@@ -65,27 +65,30 @@ export const ClassesManagement = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (scoped.loading) return;
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applied?.ministryId, applied?.headquartersId, applied?.regionalId, applied?.congregationId]);
+  }, [scoped.loading, scoped.congregationIds?.join(","), scoped.classIds?.join(",")]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
       // 1) Congregations respecting applied scope
       let congQuery = supabase.from("congregations").select("id, name, regional_id, headquarters_id").order("name");
-      if (applied?.congregationId) congQuery = congQuery.eq("id", applied.congregationId);
-      else if (applied?.regionalId) congQuery = congQuery.eq("regional_id", applied.regionalId);
-      else if (applied?.headquartersId) congQuery = congQuery.eq("headquarters_id", applied.headquartersId);
+      if (scoped.congregationIds) {
+        if (scoped.congregationIds.length === 0) {
+          setClassesList([]);
+          setCongregations([]);
+          setStudents([]);
+          setClassLoginMap({});
+          return;
+        }
+        congQuery = congQuery.in("id", scoped.congregationIds);
+      }
       const congregationsRes: any = await congQuery;
       if (congregationsRes.error) throw congregationsRes.error;
 
       let congList: any[] = congregationsRes.data || [];
-      if (applied?.ministryId && !applied?.headquartersId) {
-        const { data: hqs } = await supabase.from("headquarters" as any).select("id").eq("ministry_id", applied.ministryId);
-        const hqIds = new Set((hqs as any[] || []).map((h) => h.id));
-        congList = congList.filter((c) => hqIds.has(c.headquarters_id));
-      }
       const congIds = congList.map((c) => c.id);
 
       // 2) Classes restricted to those congregations
@@ -93,7 +96,10 @@ export const ClassesManagement = () => {
         .from("classes")
         .select(`*, congregations ( name )`)
         .order("name");
-      if (congIds.length > 0) classesQuery = classesQuery.in("congregation_id", congIds);
+      if (scoped.classIds) {
+        if (scoped.classIds.length > 0) classesQuery = classesQuery.in("id", scoped.classIds);
+        else classesQuery = classesQuery.in("id", [-1]);
+      } else if (congIds.length > 0) classesQuery = classesQuery.in("congregation_id", congIds);
       else classesQuery = classesQuery.in("congregation_id", ["00000000-0000-0000-0000-000000000000"]); // empty result
       const classesRes: any = await classesQuery;
       if (classesRes.error) throw classesRes.error;
