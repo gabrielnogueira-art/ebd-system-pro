@@ -454,6 +454,18 @@ export const HierarchyTab = () => {
   const regionalById = useMemo(() => new Map(regionals.map((r) => [r.id, r])), [regionals]);
   const congregationById = useMemo(() => new Map(congregations.map((c) => [c.id, c])), [congregations]);
 
+  // Uso do pacote contratado: total de igrejas (sedes + congregações) por ministério.
+  const churchUsageByMinistry = useMemo(() => {
+    const usage = new Map<string, number>();
+    for (const h of headquarters) usage.set(h.ministry_id, (usage.get(h.ministry_id) ?? 0) + 1);
+    for (const c of congregations) {
+      const hq = hqById.get(c.headquarters_id);
+      if (!hq) continue;
+      usage.set(hq.ministry_id, (usage.get(hq.ministry_id) ?? 0) + 1);
+    }
+    return usage;
+  }, [headquarters, congregations, hqById]);
+
   const hqName = (id: string) => hqById.get(id)?.name ?? "-";
   const regionalName = (id: string | null) =>
     id ? regionalById.get(id)?.name ?? "-" : "-";
