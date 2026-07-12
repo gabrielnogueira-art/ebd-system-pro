@@ -12,7 +12,7 @@ import { Pencil, Trash2, Check, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucid
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useUserRole } from "@/hooks/useUserRole";
 
-type Ministry = { id: string; name: string; city: string | null };
+type Ministry = { id: string; name: string; city: string | null; church_limit: number | null };
 type Headquarters = { id: string; name: string; city: string | null; ministry_id: string };
 type Regional = { id: string; name: string; headquarters_id: string };
 type Congregation = {
@@ -207,6 +207,7 @@ export const HierarchyTab = () => {
     const { error } = await db.from("ministries").update({
       name: editingMinistry.name.trim(),
       city: editingMinistry.city?.trim() || null,
+      church_limit: editingMinistry.church_limit,
     }).eq("id", editingMinistry.id);
     if (error) return handleError(error, "Falha ao atualizar");
     setEditingMinistry(null);
@@ -272,7 +273,7 @@ export const HierarchyTab = () => {
     setLoadingData(true);
     try {
       const [m, h, r, c, cl] = await Promise.all([
-        db.from("ministries").select("id,name,city").order("name"),
+        db.from("ministries").select("id,name,city,church_limit").order("name"),
         db.from("headquarters").select("id,name,city,ministry_id").order("name"),
         db.from("regionals").select("id,name,headquarters_id").order("name"),
         db.from("congregations").select("id,name,is_headquarters,headquarters_id,regional_id").order("name"),
@@ -452,6 +453,18 @@ export const HierarchyTab = () => {
   const hqById = useMemo(() => new Map(headquarters.map((h) => [h.id, h])), [headquarters]);
   const regionalById = useMemo(() => new Map(regionals.map((r) => [r.id, r])), [regionals]);
   const congregationById = useMemo(() => new Map(congregations.map((c) => [c.id, c])), [congregations]);
+
+  // Uso do pacote contratado: total de igrejas (sedes + congregações) por ministério.
+  const churchUsageByMinistry = useMemo(() => {
+    const usage = new Map<string, number>();
+    for (const h of headquarters) usage.set(h.ministry_id, (usage.get(h.ministry_id) ?? 0) + 1);
+    for (const c of congregations) {
+      const hq = hqById.get(c.headquarters_id);
+      if (!hq) continue;
+      usage.set(hq.ministry_id, (usage.get(hq.ministry_id) ?? 0) + 1);
+    }
+    return usage;
+  }, [headquarters, congregations, hqById]);
 
   const hqName = (id: string) => hqById.get(id)?.name ?? "-";
   const regionalName = (id: string | null) =>
@@ -640,6 +653,7 @@ export const HierarchyTab = () => {
               <TableRow>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'name')}>Nome <SortIcon table="ministries" column="name" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'city')}>Cidade <SortIcon table="ministries" column="city" /></TableHead>
+                <TableHead>Igrejas (uso / limite)</TableHead>
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -648,6 +662,20 @@ export const HierarchyTab = () => {
                 <TableRow key={m.id}>
                   <TableCell>{m.name}</TableCell>
                   <TableCell>{m.city ?? "-"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const used = churchUsageByMinistry.get(m.id) ?? 0;
+                      const limit = m.church_limit;
+                      if (limit == null) return <span className="text-muted-foreground">{used} / ilimitado</span>;
+                      const reached = used >= limit;
+                      const near = !reached && used / limit >= 0.9;
+                      return (
+                        <Badge variant={reached ? "destructive" : near ? "secondary" : "outline"}>
+                          {used} / {limit}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {canEditMinistry && <Button size="icon" variant="ghost" onClick={() => setEditingMinistry(m)}>
@@ -1173,6 +1201,27 @@ export const HierarchyTab = () => {
                   onChange={(e) => setEditingMinistry({ ...editingMinistry, city: e.target.value })}
                 />
               </div>
+              {isMaster && (
+                <div className="space-y-2">
+                  <Label>Limite de igrejas (sedes + congregações)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Deixe vazio para ilimitado"
+                    value={editingMinistry.church_limit ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEditingMinistry({
+                        ...editingMinistry,
+                        church_limit: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                      });
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Uso atual: {churchUsageByMinistry.get(editingMinistry.id) ?? 0}. Vazio = sem limite (uso livre).
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>

@@ -119,6 +119,8 @@ Deno.serve(async (req) => {
         if (action === "create_headquarters") {
           if (!targetMinistry) return json({ error: "Informe o ministério da sede" }, 400);
           if (!isMaster && !hasMinistry(targetMinistry)) return json({ error: "Sem permissão para criar sede neste ministério" }, 403);
+          const limitErr = await enforceChurchLimit(admin, targetMinistry);
+          if (limitErr) return json({ error: limitErr }, 403);
           const { data, error } = await admin
             .from("headquarters")
             .insert({ name, city: body.city?.trim() || null, ministry_id: targetMinistry })
@@ -164,6 +166,8 @@ Deno.serve(async (req) => {
           }
           const allowed = isMaster || hasHq(targetHq) || hasMinistry(hqMinistry) || (!!targetRegional && hasRegional(targetRegional));
           if (!allowed) return json({ error: "Sem permissão para criar congregação nesta estrutura" }, 403);
+          const limitErr = await enforceChurchLimit(admin, hqMinistry);
+          if (limitErr) return json({ error: limitErr }, 403);
           const { data, error } = await admin
             .from("congregations")
             .insert({
@@ -485,4 +489,32 @@ function json(payload: unknown, status: number) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function enforceChurchLimit(admin: any, ministryId: string): Promise<string | null> {
+  const { data: ministry } = await admin
+    .from("ministries")
+    .select("church_limit, name")
+    .eq("id", ministryId)
+    .maybeSingle();
+  const limit = (ministry as any)?.church_limit as number | null | undefined;
+  if (limit === null || limit === undefined) return null;
+  const { data: hqRows, count: hqCount } = await admin
+    .from("headquarters")
+    .select("id", { count: "exact" })
+    .eq("ministry_id", ministryId);
+  const hqIds = ((hqRows as any[]) ?? []).map((r) => r.id);
+  let congCount = 0;
+  if (hqIds.length > 0) {
+    const { count } = await admin
+      .from("congregations")
+      .select("id", { count: "exact", head: true })
+      .in("headquarters_id", hqIds);
+    congCount = count ?? 0;
+  }
+  const total = (hqCount ?? 0) + congCount;
+  if (total >= limit) {
+    return `Limite de igrejas atingido para este ministério (${total}/${limit}). Solicite ao administrador a ampliação do pacote contratado.`;
+  }
+  return null;
 }

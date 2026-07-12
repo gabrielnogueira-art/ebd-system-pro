@@ -1,0 +1,2 @@
+ALTER TABLE public.ministries ADD COLUMN IF NOT EXISTS church_limit integer;
+COMMENT ON COLUMN public.ministries.church_limit IS 'Máximo de igrejas (sedes + congregações) permitido no ministério. NULL = ilimitado.';
