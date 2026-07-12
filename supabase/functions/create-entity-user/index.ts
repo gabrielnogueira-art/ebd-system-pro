@@ -490,3 +490,25 @@ function json(payload: unknown, status: number) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+async function enforceChurchLimit(admin: any, ministryId: string): Promise<string | null> {
+  const { data: ministry } = await admin
+    .from("ministries")
+    .select("church_limit, name")
+    .eq("id", ministryId)
+    .maybeSingle();
+  const limit = (ministry as any)?.church_limit as number | null | undefined;
+  if (limit === null || limit === undefined) return null;
+  const [{ count: hqCount }, { count: congCount }] = await Promise.all([
+    admin.from("headquarters").select("id", { count: "exact", head: true }).eq("ministry_id", ministryId),
+    admin
+      .from("congregations")
+      .select("id, headquarters!inner(ministry_id)", { count: "exact", head: true })
+      .eq("headquarters.ministry_id", ministryId),
+  ]);
+  const total = (hqCount ?? 0) + (congCount ?? 0);
+  if (total >= limit) {
+    return `Limite de igrejas atingido para este ministério (${total}/${limit}). Solicite ao administrador a ampliação do pacote contratado.`;
+  }
+  return null;
+}
