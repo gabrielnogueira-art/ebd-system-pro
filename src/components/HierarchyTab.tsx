@@ -1201,6 +1201,27 @@ export const HierarchyTab = () => {
                   onChange={(e) => setEditingMinistry({ ...editingMinistry, city: e.target.value })}
                 />
               </div>
+              {isMaster && (
+                <div className="space-y-2">
+                  <Label>Limite de igrejas (sedes + congregações)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Deixe vazio para ilimitado"
+                    value={editingMinistry.church_limit ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEditingMinistry({
+                        ...editingMinistry,
+                        church_limit: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                      });
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Uso atual: {churchUsageByMinistry.get(editingMinistry.id) ?? 0}. Vazio = sem limite (uso livre).
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
