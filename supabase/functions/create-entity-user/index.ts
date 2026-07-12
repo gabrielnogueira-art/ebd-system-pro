@@ -499,14 +499,20 @@ async function enforceChurchLimit(admin: any, ministryId: string): Promise<strin
     .maybeSingle();
   const limit = (ministry as any)?.church_limit as number | null | undefined;
   if (limit === null || limit === undefined) return null;
-  const [{ count: hqCount }, { count: congCount }] = await Promise.all([
-    admin.from("headquarters").select("id", { count: "exact", head: true }).eq("ministry_id", ministryId),
-    admin
+  const { data: hqRows, count: hqCount } = await admin
+    .from("headquarters")
+    .select("id", { count: "exact" })
+    .eq("ministry_id", ministryId);
+  const hqIds = ((hqRows as any[]) ?? []).map((r) => r.id);
+  let congCount = 0;
+  if (hqIds.length > 0) {
+    const { count } = await admin
       .from("congregations")
-      .select("id, headquarters!inner(ministry_id)", { count: "exact", head: true })
-      .eq("headquarters.ministry_id", ministryId),
-  ]);
-  const total = (hqCount ?? 0) + (congCount ?? 0);
+      .select("id", { count: "exact", head: true })
+      .in("headquarters_id", hqIds);
+    congCount = count ?? 0;
+  }
+  const total = (hqCount ?? 0) + congCount;
   if (total >= limit) {
     return `Limite de igrejas atingido para este ministério (${total}/${limit}). Solicite ao administrador a ampliação do pacote contratado.`;
   }
