@@ -653,6 +653,7 @@ export const HierarchyTab = () => {
               <TableRow>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'name')}>Nome <SortIcon table="ministries" column="name" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort('ministries', 'city')}>Cidade <SortIcon table="ministries" column="city" /></TableHead>
+                <TableHead>Igrejas (uso / limite)</TableHead>
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -661,6 +662,20 @@ export const HierarchyTab = () => {
                 <TableRow key={m.id}>
                   <TableCell>{m.name}</TableCell>
                   <TableCell>{m.city ?? "-"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const used = churchUsageByMinistry.get(m.id) ?? 0;
+                      const limit = m.church_limit;
+                      if (limit == null) return <span className="text-muted-foreground">{used} / ilimitado</span>;
+                      const reached = used >= limit;
+                      const near = !reached && used / limit >= 0.9;
+                      return (
+                        <Badge variant={reached ? "destructive" : near ? "secondary" : "outline"}>
+                          {used} / {limit}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {canEditMinistry && <Button size="icon" variant="ghost" onClick={() => setEditingMinistry(m)}>
