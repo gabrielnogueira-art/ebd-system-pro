@@ -130,6 +130,7 @@ export type Database = {
       ministries: {
         Row: {
           brand_primary_hsl: string | null
+          church_limit: number | null
           city: string | null
           created_at: string
           display_name: string | null
@@ -141,6 +142,7 @@ export type Database = {
         }
         Insert: {
           brand_primary_hsl?: string | null
+          church_limit?: number | null
           city?: string | null
           created_at?: string
           display_name?: string | null
@@ -152,6 +154,7 @@ export type Database = {
         }
         Update: {
           brand_primary_hsl?: string | null
+          church_limit?: number | null
           city?: string | null
           created_at?: string
           display_name?: string | null

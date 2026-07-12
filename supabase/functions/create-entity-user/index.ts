@@ -119,6 +119,8 @@ Deno.serve(async (req) => {
         if (action === "create_headquarters") {
           if (!targetMinistry) return json({ error: "Informe o ministério da sede" }, 400);
           if (!isMaster && !hasMinistry(targetMinistry)) return json({ error: "Sem permissão para criar sede neste ministério" }, 403);
+          const limitErr = await enforceChurchLimit(admin, targetMinistry);
+          if (limitErr) return json({ error: limitErr }, 403);
           const { data, error } = await admin
             .from("headquarters")
             .insert({ name, city: body.city?.trim() || null, ministry_id: targetMinistry })
@@ -164,6 +166,8 @@ Deno.serve(async (req) => {
           }
           const allowed = isMaster || hasHq(targetHq) || hasMinistry(hqMinistry) || (!!targetRegional && hasRegional(targetRegional));
           if (!allowed) return json({ error: "Sem permissão para criar congregação nesta estrutura" }, 403);
+          const limitErr = await enforceChurchLimit(admin, hqMinistry);
+          if (limitErr) return json({ error: limitErr }, 403);
           const { data, error } = await admin
             .from("congregations")
             .insert({
