@@ -12,7 +12,7 @@ import { Pencil, Trash2, Check, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucid
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useUserRole } from "@/hooks/useUserRole";
 
-type Ministry = { id: string; name: string; city: string | null };
+type Ministry = { id: string; name: string; city: string | null; church_limit: number | null };
 type Headquarters = { id: string; name: string; city: string | null; ministry_id: string };
 type Regional = { id: string; name: string; headquarters_id: string };
 type Congregation = {
@@ -207,6 +207,7 @@ export const HierarchyTab = () => {
     const { error } = await db.from("ministries").update({
       name: editingMinistry.name.trim(),
       city: editingMinistry.city?.trim() || null,
+      church_limit: editingMinistry.church_limit,
     }).eq("id", editingMinistry.id);
     if (error) return handleError(error, "Falha ao atualizar");
     setEditingMinistry(null);
@@ -272,7 +273,7 @@ export const HierarchyTab = () => {
     setLoadingData(true);
     try {
       const [m, h, r, c, cl] = await Promise.all([
-        db.from("ministries").select("id,name,city").order("name"),
+        db.from("ministries").select("id,name,city,church_limit").order("name"),
         db.from("headquarters").select("id,name,city,ministry_id").order("name"),
         db.from("regionals").select("id,name,headquarters_id").order("name"),
         db.from("congregations").select("id,name,is_headquarters,headquarters_id,regional_id").order("name"),
