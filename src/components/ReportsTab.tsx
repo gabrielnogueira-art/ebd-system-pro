@@ -325,7 +325,7 @@ export const ReportsTab = () => {
         return;
       }
       
-      let stuQ = supabase.from("students").select("*, classes(id, name)").eq("active", true);
+      let stuQ = supabase.from("students").select("*, classes!students_class_id_fkey(id, name)").eq("active", true);
       if (scoped.classIds) stuQ = stuQ.in("class_id", scoped.classIds);
       const { data: students, error: studentsError } = await stuQ;
       if (studentsError) throw studentsError;
