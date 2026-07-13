@@ -238,7 +238,26 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
 
   const fetchQuarterlyData = async () => {
     try {
-      const { startDate, endDate } = getQuarterDates(selectedQuarter);
+      let { startDate, endDate } = getQuarterDates(selectedQuarter);
+
+      // Fallback: se o trimestre atual estiver sem qualquer registro,
+      // recua ate 4 trimestres para mostrar os dados existentes automaticamente.
+      if (selectedQuarter === "current" && classIds !== null && classIds.length > 0) {
+        for (let back = 1; back <= 4; back++) {
+          const { count } = await (supabase as any)
+            .from("registrations")
+            .select("id", { count: "exact", head: true })
+            .in("class_id", classIds)
+            .gte("registration_date", startDate.toISOString())
+            .lte("registration_date", endDate.toISOString());
+          if ((count ?? 0) > 0) break;
+          const prevStart = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() - 3, 1));
+          const prevEnd = new Date(Date.UTC(prevStart.getUTCFullYear(), prevStart.getUTCMonth() + 3, 1));
+          prevEnd.setUTCMilliseconds(prevEnd.getUTCMilliseconds() - 1);
+          startDate = prevStart;
+          endDate = prevEnd;
+        }
+      }
 
       if (classIds !== null && classIds.length === 0) {
         setQuarterlyData([]);
