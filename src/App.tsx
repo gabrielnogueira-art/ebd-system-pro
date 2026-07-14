@@ -10,6 +10,8 @@ import Professor from "./pages/Professor";
 import Signup from "./pages/Signup";
 import OAuthConsent from "./pages/OAuthConsent";
 import { BrandingApplier } from "./components/BrandingApplier";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 function RootGate() {
   const [state, setState] = useState<"loading" | "anon" | { to: string }>("loading");
@@ -61,6 +63,8 @@ function App() {
   return (
     <Router>
       <BrandingApplier />
+      <Toaster />
+      <SonnerToaster />
       <Routes>
         <Route path="/" element={<RootGate />} />
         <Route path="/form" element={<EBDRegistrationForm />} />
