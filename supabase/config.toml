@@ -2,3 +2,6 @@ project_id = "tqgsirutntejwkowplnc"
 
 [functions.create-entity-user]
 verify_jwt = true
+
+[functions.send-auth-email]
+verify_jwt = false
