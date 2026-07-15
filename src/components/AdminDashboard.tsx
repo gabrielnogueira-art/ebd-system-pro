@@ -112,6 +112,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
   const [selectedDate, setSelectedDate] = useState<string>("all");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [absenceQuarter, setAbsenceQuarter] = useState("current");
+  const [ageGroup, setAgeGroup] = useState<"all" | "Crianças" | "Adolescentes" | "Adultos">("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -484,6 +485,26 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))'];
 
+  const getClassCategory = (className: string): "Crianças" | "Adolescentes" | "Adultos" | "Ignorar" => {
+    const upper = (className || "").toUpperCase();
+    if (upper.includes("PROFESSOR") || upper.includes("EXTRA")) return "Ignorar";
+    if (upper.includes("OVELHINHAS") || upper.includes("CORDEIRINHOS") || upper.includes("SOLDADOS") || upper.includes("ESTRELA")) return "Crianças";
+    if (upper.includes("LAEL") || upper.includes("ÁGAPE") || upper.includes("AGAPE")) return "Adolescentes";
+    // Faixa por idade textual "(X a Y anos)" / "(X e Y anos)"
+    const m = upper.match(/(\d{1,2})\s*(?:A|E|-|—)\s*(\d{1,2})\s*ANOS/);
+    if (m) {
+      const min = parseInt(m[1], 10);
+      if (min <= 11) return "Crianças";
+      if (min <= 17) return "Adolescentes";
+      return "Adultos";
+    }
+    return "Adultos";
+  };
+
+  const filteredClassData = ageGroup === "all"
+    ? classData
+    : classData.filter((c) => getClassCategory(c.className) === ageGroup);
+
   return (
     <div className="space-y-6">
         <DashboardScopeFilter scope={scope} />
@@ -735,7 +756,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                     </TabsContent>
                     <TabsContent value="classes">
                         <div className="mb-4">
-                            <div className="flex items-center gap-4">
+                            <div className="flex flex-wrap items-center gap-4">
                                 <Select value={selectedDate} onValueChange={setSelectedDate}>
                                     <SelectTrigger className="w-[200px]">
                                         <SelectValue placeholder="Selecione uma data" />
@@ -749,6 +770,17 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <Select value={ageGroup} onValueChange={(v) => setAgeGroup(v as any)}>
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Faixa etária" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas as faixas</SelectItem>
+                                        <SelectItem value="Crianças">Crianças</SelectItem>
+                                        <SelectItem value="Adolescentes">Adolescentes</SelectItem>
+                                        <SelectItem value="Adultos">Adultos</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <p className="text-sm text-muted-foreground">
                                     {selectedDate && selectedDate !== "all"
                                         ? `Exibindo presentes em ${new Date(selectedDate).toLocaleDateString('pt-BR')}`
@@ -757,7 +789,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                             </div>
                         </div>
                          <ChartContainer config={{}} className="h-[600px] w-full">
-                           <BarChart data={classData} layout="vertical" margin={{ left: 20, right: 50 }}>
+                           <BarChart data={filteredClassData} layout="vertical" margin={{ left: 20, right: 50 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis type="number" />
                                 <YAxis 
@@ -780,16 +812,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                     </TabsContent>
                     <TabsContent value="rankings">
                         {(() => {
-                            const getClassCategory = (className: string): string => {
-                                const upper = className.toUpperCase();
-                                if (upper.includes("OVELHINHAS") || upper.includes("CORDEIRINHOS") || upper.includes("SOLDADOS") || upper.includes("ESTRELA")) return "Crianças";
-                                if (upper.includes("LAEL") || upper.includes("ÁGAPE")) return "Adolescentes";
-                                if (upper.includes("NOVA VIDA") || upper.includes("EMANUEL") || upper.includes("ESTER") || upper.includes("LÍRIOS") || upper.includes("VENCEDORAS") || upper.includes("ESPERANÇA") || upper.includes("HERÓIS") || upper.includes("DÉBORA") || upper.includes("MOISÉS") || upper.includes("ABRAÃO")) return "Adultos";
-                                if (upper.includes("PROFESSOR") || upper.includes("EXTRA")) return "Ignorar";
-                                return "Ignorar";
-                            };
-
-                            const validClasses = classData.filter(c => getClassCategory(c.className) !== "Ignorar");
+                            const validClasses = filteredClassData.filter(c => getClassCategory(c.className) !== "Ignorar");
 
                             const getTop3 = (data: ClassData[], category: string, metric: keyof ClassData, filterKey: keyof ClassData) => {
                                 return data
@@ -798,7 +821,9 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
                                     .slice(0, 3);
                             };
 
-                            const categories = ["Crianças", "Adolescentes", "Adultos"];
+                            const categories = ageGroup === "all"
+                                ? ["Crianças", "Adolescentes", "Adultos"]
+                                : [ageGroup];
                             const metrics: { key: keyof ClassData; filterKey: keyof ClassData; label: string; icon: React.ReactNode; description: string }[] = [
                                 { key: "presenceRate", filterKey: "enrolled", label: "Ranking de Presença", icon: <Users className="h-4 w-4 text-blue-600" />, description: "% presentes / matriculados" },
                                 { key: "biblesRate", filterKey: "totalPresent", label: "Ranking de Bíblias", icon: <BookOpen className="h-4 w-4 text-green-600" />, description: "% bíblias / presentes" },

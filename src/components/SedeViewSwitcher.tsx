@@ -82,7 +82,15 @@ export const SedeViewSwitcher = () => {
       </div>
 
       {view === "local" && (
-        <AdminDashboard congregationOverride={localCongId} />
+        localCongId ? (
+          <AdminDashboard congregationOverride={localCongId} />
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              Identificando a congregação Sede local...
+            </CardContent>
+          </Card>
+        )
       )}
 
       {view === "list" && (
