@@ -288,11 +288,31 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
 
   const fetchAbsentStudents = async () => {
     try {
-      const { startDate, endDate } = getQuarterDates(absenceQuarter);
+      let { startDate, endDate } = getQuarterDates(absenceQuarter);
 
       if (classIds !== null && classIds.length === 0) {
         setAbsentStudents([]);
         return;
+      }
+
+      // Fallback: se o trimestre atual estiver sem registros,
+      // recua ate 4 trimestres para manter a analise coerente
+      // com o painel "Analise Trimestral".
+      if (absenceQuarter === "current" && classIds !== null && classIds.length > 0) {
+        for (let back = 1; back <= 4; back++) {
+          const { count } = await (supabase as any)
+            .from("registrations")
+            .select("id", { count: "exact", head: true })
+            .in("class_id", classIds)
+            .gte("registration_date", startDate.toISOString())
+            .lte("registration_date", endDate.toISOString());
+          if ((count ?? 0) > 0) break;
+          const prevStart = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() - 3, 1));
+          const prevEnd = new Date(Date.UTC(prevStart.getUTCFullYear(), prevStart.getUTCMonth() + 3, 1));
+          prevEnd.setUTCMilliseconds(prevEnd.getUTCMilliseconds() - 1);
+          startDate = prevStart;
+          endDate = prevEnd;
+        }
       }
 
       let stuQ = supabase.from("students").select("id, name, class_id").eq("active", true);
