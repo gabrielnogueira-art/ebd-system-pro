@@ -112,6 +112,7 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
   const [selectedDate, setSelectedDate] = useState<string>("all");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [absenceQuarter, setAbsenceQuarter] = useState("current");
+  const [ageGroup, setAgeGroup] = useState<"all" | "Crianças" | "Adolescentes" | "Adultos">("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -483,6 +484,26 @@ export const AdminDashboard = ({ congregationOverride }: AdminDashboardProps = {
   }
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))'];
+
+  const getClassCategory = (className: string): "Crianças" | "Adolescentes" | "Adultos" | "Ignorar" => {
+    const upper = (className || "").toUpperCase();
+    if (upper.includes("PROFESSOR") || upper.includes("EXTRA")) return "Ignorar";
+    if (upper.includes("OVELHINHAS") || upper.includes("CORDEIRINHOS") || upper.includes("SOLDADOS") || upper.includes("ESTRELA")) return "Crianças";
+    if (upper.includes("LAEL") || upper.includes("ÁGAPE") || upper.includes("AGAPE")) return "Adolescentes";
+    // Faixa por idade textual "(X a Y anos)" / "(X e Y anos)"
+    const m = upper.match(/(\d{1,2})\s*(?:A|E|-|—)\s*(\d{1,2})\s*ANOS/);
+    if (m) {
+      const min = parseInt(m[1], 10);
+      if (min <= 11) return "Crianças";
+      if (min <= 17) return "Adolescentes";
+      return "Adultos";
+    }
+    return "Adultos";
+  };
+
+  const filteredClassData = ageGroup === "all"
+    ? classData
+    : classData.filter((c) => getClassCategory(c.className) === ageGroup);
 
   return (
     <div className="space-y-6">
